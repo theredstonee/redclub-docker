@@ -1,20 +1,14 @@
 {
-  "version": "1.1.0",
+  "version": "1.1.1",
   "datum": "2026-10-24",
   "hinweise": {
     "de": [
-      "Website-Baukasten: Vereins-Homepage aus Blöcken mit Live-Vorschau, auf eigener Domain oder unter /web",
-      "Termine, News, Trainingszeiten, Vorstand und Beiträge erscheinen automatisch auf der Website",
-      "Mitgliedsantrag mit SEPA-Mandat und Kontaktformular — Anträge mit einem Klick annehmen",
-      "Impressum und Datenschutz aus den Vereinsdaten, Galerie aus RedDrop",
-      "Prüfrunde: Rücklastschriften im Bankabgleich, Lastschriftlauf verwerfen, mehr Schutz für IBAN und Anmeldung"
+      "Bilder zuschneiden: Logo und Website-Bilder vor dem Hochladen zuschneiden, zoomen, drehen und spiegeln",
+      "Große Fotos werden dabei auf höchstens 2400 Pixel verkleinert — die Website lädt schneller"
     ],
     "en": [
-      "Website builder: club homepage from blocks with live preview, on your own domain or under /web",
-      "Events, news, training times, board and fees appear on the website automatically",
-      "Membership form with SEPA mandate and contact form — accept applications in one click",
-      "Imprint and privacy policy from the club details, gallery from RedDrop",
-      "Review round: returned debits in bank matching, discard direct debit runs, more protection for IBAN and sign-in"
+      "Crop images: crop, zoom, rotate and flip the logo and website images before uploading",
+      "Large photos are scaled down to at most 2400 pixels — the website loads faster"
     ]
   }
 }
