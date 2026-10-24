@@ -1,18 +1,14 @@
 {
-  "version": "1.2.0",
+  "version": "1.2.1",
   "datum": "2026-10-25",
   "hinweise": {
     "de": [
-      "Umzug: alle Vereinsdaten, Konten, Belege und Website-Bilder als verschlüsselte Datei mitnehmen und in einem anderen RedClub übernehmen (Einstellungen → Umzug)",
-      "Eigene Domain für die Website jetzt auch per Cloudflare Tunnel (automatisch eingetragen) und hinter nginx/Apache (Virtual Host und Zertifikat legt der Server-Dienst an)",
-      "Datumsangaben wie Eintritt und laufendes Geschäftsjahr richten sich jetzt immer nach der Vereinszeit",
-      "Für die neuen Domain-Wege einmal „sudo bash install.sh“ im RedClub-Ordner ausführen (aktualisiert den Server-Dienst)"
+      "Neue Versionen erscheinen schneller im Panel: Prüfung stündlich und beim Öffnen des Versionsfensters",
+      "Enthält alles aus 1.2.0: Umzug zwischen Servern, eigene Website-Domain auch per Cloudflare Tunnel und hinter nginx/Apache"
     ],
     "en": [
-      "Transfer: take all club data, accounts, receipts and website images as an encrypted file and import it into another RedClub (Settings → Transfer)",
-      "Own domain for the website now also via Cloudflare Tunnel (added automatically) and behind nginx/Apache (the server service creates virtual host and certificate)",
-      "Dates such as joining date and current financial year now always follow the club's time zone",
-      "For the new domain options run “sudo bash install.sh” in the RedClub folder once (updates the server service)"
+      "New versions show up faster in the panel: checked hourly and when the version dialog opens",
+      "Includes everything from 1.2.0: transfer between servers, own website domain also via Cloudflare Tunnel and behind nginx/Apache"
     ]
   }
 }
