@@ -4,7 +4,7 @@
 
 By [TheRedStonee](https://www.theredstonee.de/) · 5 Tage kostenlos testen, danach mit Lizenz
 
-> **English:** Self-hosted club management for associations in Germany, Austria and Switzerland. Runs as a Docker package on your own server, so your members' data stays with you. Members, groups, events with sign-ups and helper shifts, newsletters, a members area (installable app with push notices), double-entry bookkeeping with DATEV export, invoices with Swiss QR-bill / GiroCode, SEPA direct debit, Stripe and bank-statement import, donation receipts, certificates, volunteer hours and coach payouts, RedDrop files and single sign-on for other apps. Cloudflare Tunnel for servers without open ports. 5-day trial, then with a licence — without one everything stays readable and exportable. One `docker compose up`, automatic HTTPS via Let's Encrypt. German and English. Jump to [Quick start](#schnellstart).
+> **English:** Self-hosted club management for associations in Germany, Austria and Switzerland. Runs as a Docker package on your own server, so your members' data stays with you. Members, groups, events with sign-ups and helper shifts, newsletters, a members area (installable app with push notices), double-entry bookkeeping with DATEV export, invoices with Swiss QR-bill / GiroCode, SEPA direct debit, Stripe and bank-statement import, donation receipts, certificates, volunteer hours and coach payouts, RedDrop files and single sign-on for other apps, plus a website builder for the club homepage with membership form and contact form. Cloudflare Tunnel for servers without open ports. 5-day trial, then with a licence — without one everything stays readable and exportable. One `docker compose up`, automatic HTTPS via Let's Encrypt. German and English. Jump to [Quick start](#schnellstart).
 
 ---
 
@@ -19,6 +19,7 @@ By [TheRedStonee](https://www.theredstonee.de/) · 5 Tage kostenlos testen, dana
 - **Spenden:** Online-Spenden, **Zuwendungsbestätigungen** nach amtlichem Muster (DE), Jahresmeldung an **FinanzOnline** (AT).
 - **Urkunden und Qualifikationen:** Urkunden als PDF mit eigenen Vorlagen und Prüf-Link, Lizenzen und Ausbildungen mit Ablaufdatum und Erinnerung.
 - **Stunden:** Helfer- und Pflichtstunden (mit Ersatzabgabe), Trainer- und Übungsleiter-Abrechnung mit Jahresgrenzen, Projekte und Vorstandsarbeit.
+- **Website-Baukasten:** die Vereins-Homepage aus Blöcken (Titelbild, Text, Termine, Trainingszeiten, News, Vorstand, Beiträge, Spenden, Galerie, Anfahrt, Fragen) mit Live-Vorschau — auf eurer eigenen Domain mit automatischem HTTPS oder unter `/web`. Mitgliedsantrag (auf Wunsch mit SEPA-Mandat) und Kontaktformular landen direkt im Panel; Impressum und Datenschutz entstehen aus den Vereinsdaten.
 - **Verbindungen:** Dateien und Fotos über [RedDrop](https://www.theredstonee.de/reddrop/) (Ordner im Mitgliederbereich, Upload-Links), **Anmeldung mit dem RedClub-Zugang** in anderen Apps (OpenID Connect), automatische Mitglieder-Lizenzen aus einer [TRS License](https://www.theredstonee.de/license/).
 - **Konten für den Vorstand** mit Rollen (Inhaber, Admin, Mitarbeit), **Zwei-Faktor-Anmeldung** und **Passkeys**, Protokoll aller Änderungen.
 - **Erreichbar, wie es passt:** eigene Domain mit automatischem HTTPS, hinter eurem nginx/Apache — oder per **Cloudflare Tunnel** ohne offene Ports.
@@ -102,6 +103,10 @@ Für Heimserver oder Server hinter einer Firewall: RedClub baut über einen eige
 
 - **Tunnel-Token:** Tunnel im Cloudflare-Dashboard anlegen (Zero Trust → Networks → Tunnels), als Public Hostname deine Domain mit Service `HTTP` → `app:3000`, dann den Token im Panel einfügen.
 - **Automatisch:** ein Cloudflare-API-Token mit den Rechten „Account → Cloudflare Tunnel → Edit“ und „Zone → DNS → Edit“ einfügen — RedClub legt Tunnel, Weiterleitung und DNS-Eintrag selbst an und räumt sie auf Wunsch wieder ab.
+
+### Eigene Domain für die Vereins-Website
+
+Die Website ist ohne weiteres unter `https://<RedClub-Adresse>/web` erreichbar. Für eine eigene Domain (z. B. `www.meinverein.de`) diese im Panel unter **Website → Gestaltung & Einstellungen** eintragen und einen DNS-Eintrag auf denselben Server setzen — mit eigenem Caddy holt RedClub das Zertifikat selbst. Hinter nginx/Apache einen zweiten Virtual Host auf denselben Port anlegen, beim Cloudflare Tunnel einen weiteren Public Hostname auf `app:3000`.
 
 ### RedDrop für Dateien und Fotos
 
