@@ -1,14 +1,12 @@
 {
-  "version": "1.1.1",
+  "version": "1.1.2",
   "datum": "2026-10-24",
   "hinweise": {
     "de": [
-      "Bilder zuschneiden: Logo und Website-Bilder vor dem Hochladen zuschneiden, zoomen, drehen und spiegeln",
-      "Große Fotos werden dabei auf höchstens 2400 Pixel verkleinert — die Website lädt schneller"
+      "Behoben: Symbole wurden auf manchen Seiten (z. B. Stunden ohne Einträge) riesig angezeigt"
     ],
     "en": [
-      "Crop images: crop, zoom, rotate and flip the logo and website images before uploading",
-      "Large photos are scaled down to at most 2400 pixels — the website loads faster"
+      "Fixed: icons were shown huge on some pages (e.g. hours without entries)"
     ]
   }
 }
