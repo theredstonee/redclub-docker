@@ -1,0 +1,18 @@
+# RedClub — ohne eigenen Caddy: die App hoert auf EINEM Port, dein vorhandener Webserver
+# (nginx, Apache, Plesk …) leitet die Domain dorthin weiter und macht HTTPS.
+# Aktiv, wenn in .env steht:  COMPOSE_FILE=docker-compose.yml:compose.port.yml
+#
+#   RC_PORT=8080            der Port (install.sh sucht einen freien)
+#   RC_BIND=127.0.0.1       nur von diesem Server aus erreichbar (Standard); 0.0.0.0 = von ueberall
+#   RC_PROXY_DOMAIN=…       Domain, unter der dein Webserver RedClub ausliefert (optional)
+#
+# Dein Webserver muss die Header Host, X-Forwarded-Proto und X-Forwarded-For setzen — die
+# Vorlage dafuer zeigt install.sh und RedClub unter Einstellungen → Verbindung.
+services:
+  app:
+    ports:
+      - "${RC_BIND:-127.0.0.1}:${RC_PORT:?Bitte RC_PORT in .env setzen}:3000"
+    environment:
+      RC_PORT: ${RC_PORT}
+      RC_BIND: ${RC_BIND:-127.0.0.1}
+      RC_PROXY_DOMAIN: ${RC_PROXY_DOMAIN:-}

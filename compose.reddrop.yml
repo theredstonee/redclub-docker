@@ -1,0 +1,56 @@
+# RedClub + RedDrop auf einem Server — RedDrop liefert die Vereins-Dateien und -Fotos.
+# Aktiv, wenn in .env steht:  COMPOSE_FILE=docker-compose.yml:compose.caddy.yml:compose.reddrop.yml
+# (install.sh fragt danach). Noetig in der .env:
+#   RC_REDDROP_DOMAIN=dateien.meinverein.de   eigene Domain fuer RedDrop (DNS auf diesen Server)
+#   REDDROP_DB_PASSWORD=…                      Passwort der RedDrop-Datenbank (install.sh erzeugt es)
+#
+# RedDrop richtet sich beim ersten Aufruf seiner Domain selbst ein (eigener Setup-Code:
+#   docker compose logs reddrop | grep Setup-Code). Danach in RedDrop einen API-Token anlegen und in
+# RedClub unter Einstellungen → Verbindungen eintragen. RedClub spricht RedDrop intern ueber
+# http://reddrop:3000 an — die Dateien verlassen den Server dafuer nicht.
+services:
+  app:
+    environment:
+      RC_REDDROP_INTERN: http://reddrop:3000
+      RC_REDDROP_DOMAIN: ${RC_REDDROP_DOMAIN:-}
+
+  caddy:
+    environment:
+      RC_REDDROP_DOMAIN: ${RC_REDDROP_DOMAIN:-reddrop.invalid}
+
+  reddrop:
+    image: ghcr.io/theredstonee/reddrop:latest
+    restart: unless-stopped
+    environment:
+      NUXT_DB_URL: postgres://reddrop:${REDDROP_DB_PASSWORD:?Bitte REDDROP_DB_PASSWORD in .env setzen}@reddrop-db:5432/reddrop
+      TZ: ${TZ:-Europe/Berlin}
+      RD_LANG: ${RC_LANG:-de}
+      # HTTPS + HSTS erzwingt Caddy davor; die eigene Umleitung von RedDrop wuerde die internen Aufrufe von
+      # RedClub (http://reddrop:3000) abweisen
+      RD_DISABLE_HTTPS_REDIRECT: "1"
+    volumes:
+      - reddrop_dateien:/data
+    depends_on:
+      reddrop-db:
+        condition: service_healthy
+    expose: ["3000"]
+    stop_grace_period: 20s
+
+  reddrop-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: reddrop
+      POSTGRES_PASSWORD: ${REDDROP_DB_PASSWORD}
+      POSTGRES_DB: reddrop
+    volumes:
+      - reddrop_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reddrop -d reddrop"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  reddrop_dateien:
+  reddrop_db:

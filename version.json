@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "datum": "2026-10-24",
+  "hinweise": {
+    "de": [
+      "Erste Version: Mitglieder, Termine, Rundmails und Mitgliederbereich",
+      "Buchhaltung mit Jahresabschluss und DATEV, Rechnungen mit QR-Rechnung/GiroCode, Lastschrift und Stripe",
+      "Spenden mit Zuwendungsbestätigung und FinanzOnline, Urkunden, Qualifikationen, Stunden",
+      "Verbindungen zu RedDrop und TRS License, Anmeldung für andere Apps",
+      "5 Tage Testphase, danach mit Lizenz — ohne Lizenz bleibt alles lesbar"
+    ],
+    "en": [
+      "First release: members, events, newsletters and members area",
+      "Bookkeeping with year-end closing and DATEV, invoices with QR-bill/GiroCode, direct debit and Stripe",
+      "Donations with receipts and FinanzOnline, certificates, qualifications, hours",
+      "Connections to RedDrop and TRS License, sign-in for other apps",
+      "5-day trial, then with a licence — without one everything stays readable"
+    ]
+  }
+}
