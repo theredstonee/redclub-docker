@@ -287,6 +287,7 @@ DIR="$PWD"; DATEN="$daten"
 [ -f "\$DATEN/.update-anfrage" ] || exit 0
 aktion=\$(sed -n 's/.*"aktion":"\([a-z-]*\)".*/\1/p' "\$DATEN/.update-anfrage")
 tok=\$(sed -n 's#.*"token":"\([A-Za-z0-9+/=_-]*\)".*#\1#p' "\$DATEN/.update-anfrage")
+dom=\$(sed -n 's/.*"domain":"\([a-z0-9.-]*\)".*/\1/p' "\$DATEN/.update-anfrage")
 rm -f "\$DATEN/.update-anfrage"
 status() { printf '{"status":"%s","zeit":"%s","meldung":"%s"}\n' "\$2" "\$(date -Is)" "\$3" > "\$DATEN/\$1"; chmod 644 "\$DATEN/\$1"; }
 kurz() { echo "\$1" | tail -3 | tr '\n"\\\\' '   '; }
@@ -309,6 +310,43 @@ case "\${aktion:-update}" in
     status .tunnel-status laeuft ""
     if out=\$(docker compose stop cloudflared 2>&1 && docker compose rm -f cloudflared 2>&1); then profil aus tunnel; sed -i '/^RC_TUNNEL_TOKEN=/d' .env; status .tunnel-status fertig ""
     else status .tunnel-status fehler "\$(kurz "\$out")"; fi ;;
+  website-an|website-aus)
+    # Eigene Domain fuer die Vereins-Website: Virtual Host auf den RedClub-Port + Zertifikat (certbot, HTTPS-Weiterleitung, HSTS)
+    status .website-status laeuft ""
+    port=\$(sed -n 's/^RC_PORT=//p' .env | tail -1)
+    if [ -z "\$dom" ] || [ -z "\$port" ]; then status .website-status fehler "Domain oder Port fehlt"; exit 1; fi
+    ws=""; if command -v nginx >/dev/null 2>&1; then ws=nginx; elif command -v apache2ctl >/dev/null 2>&1; then ws=apache2; elif command -v httpd >/dev/null 2>&1; then ws=httpd; fi
+    [ -n "\$ws" ] || { status .website-status fehler "Kein nginx oder Apache gefunden"; exit 1; }
+    link=""
+    case "\$ws" in
+      nginx) if [ -d /etc/nginx/sites-enabled ]; then datei=/etc/nginx/sites-available/redclub-website.conf; link=/etc/nginx/sites-enabled/redclub-website.conf; else datei=/etc/nginx/conf.d/redclub-website.conf; fi ;;
+      apache2) datei=/etc/apache2/sites-available/redclub-website.conf ;;
+      *) datei=/etc/httpd/conf.d/redclub-website.conf ;;
+    esac
+    neuladen() { case "\$ws" in nginx) nginx -t >/dev/null 2>&1 && { systemctl reload nginx 2>/dev/null || nginx -s reload; } ;; apache2) apache2ctl configtest >/dev/null 2>&1 && systemctl reload apache2 ;; *) httpd -t >/dev/null 2>&1 && systemctl reload httpd ;; esac; }
+    [ -f "\$datei" ] && cp -a "\$datei" "/root/redclub-website.conf.bak-\$(date +%Y%m%d-%H%M%S)"
+    if [ "\$aktion" = "website-aus" ]; then
+      [ "\$ws" = "apache2" ] && a2dissite -q redclub-website.conf >/dev/null 2>&1
+      rm -f "\$datei" \$link
+      command -v certbot >/dev/null 2>&1 && certbot delete --cert-name "\$dom" -n >/dev/null 2>&1
+      if neuladen; then status .website-status fertig "entfernt"; else status .website-status fehler "Konfigtest des Webservers schlaegt fehl"; fi
+      exit 0
+    fi
+    dom_re=\$(printf '%s' "\$dom" | sed 's/[.]/[.]/g')
+    fremd=\$(grep -RlsE "(^|[[:space:];{])(server_name|ServerName|ServerAlias)[[:space:]]+([^;#]*[[:space:]])?\${dom_re}([[:space:];]|\$)" /etc/nginx/sites-enabled /etc/nginx/conf.d /etc/apache2/sites-enabled /etc/httpd/conf.d 2>/dev/null | grep -v 'redclub-website' | head -1)
+    [ -z "\$fremd" ] || { status .website-status fehler "Fuer \$dom gibt es schon einen Eintrag (\$fremd), den fasse ich nicht an"; exit 1; }
+    if [ "\$ws" = "nginx" ]; then
+      printf '%s\n' "# RedClub-Website, angelegt vom Update-Dienst" "server {" "    listen 80;" "    listen [::]:80;" "    server_name \$dom;" "    client_max_body_size 20m;" "    location / {" "        proxy_pass http://127.0.0.1:\$port;" "        proxy_http_version 1.1;" '        proxy_set_header Host \$host;' '        proxy_set_header X-Real-IP \$remote_addr;' '        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;' '        proxy_set_header X-Forwarded-Proto \$scheme;' "    }" "}" > "\$datei"
+      [ -n "\$link" ] && ln -sf "\$datei" "\$link"
+    else
+      printf '%s\n' "# RedClub-Website, angelegt vom Update-Dienst" "<VirtualHost *:80>" "    ServerName \$dom" "    ProxyPreserveHost On" "    ProxyPass / http://127.0.0.1:\$port/" "    ProxyPassReverse / http://127.0.0.1:\$port/" '    RequestHeader set X-Forwarded-Proto "expr=%{REQUEST_SCHEME}"' "</VirtualHost>" > "\$datei"
+      [ "\$ws" = "apache2" ] && { a2enmod -q proxy proxy_http headers >/dev/null 2>&1; a2ensite -q redclub-website.conf >/dev/null 2>&1; }
+    fi
+    neuladen || { rm -f "\$datei" \$link; neuladen; status .website-status fehler "Konfigtest des Webservers schlaegt fehl, Eintrag wieder entfernt"; exit 1; }
+    plugin=nginx; [ "\$ws" = "nginx" ] || plugin=apache
+    if ! command -v certbot >/dev/null 2>&1; then { apt-get install -y -qq certbot "python3-certbot-\$plugin" || dnf install -y -q certbot "python3-certbot-\$plugin"; } >/dev/null 2>&1; fi
+    if out=\$(certbot "--\$plugin" -d "\$dom" --redirect --hsts -n --agree-tos --register-unsafely-without-email 2>&1); then status .website-status fertig "https"
+    else status .website-status fehler "Virtual Host steht, aber das Zertifikat fehlt (zeigt der DNS-Eintrag auf diesen Server?): \$(kurz "\$out")"; fi ;;
   *)
     status .update-status laeuft ""
     dienste="app"; grep -q '^COMPOSE_PROFILES=.*tunnel' .env && dienste="\$dienste cloudflared"
@@ -320,7 +358,7 @@ SKRIPT
   printf '%s\n' "[Unit]" "Description=RedClub: Update-Anfrage aus dem Panel" "[Path]" "PathExists=$daten/.update-anfrage" "[Install]" "WantedBy=multi-user.target" > /etc/systemd/system/redclub-update.path
   printf '%s\n' "[Unit]" "Description=RedClub aktualisieren" "[Service]" "Type=oneshot" "ExecStart=/usr/local/bin/redclub-update" > /etc/systemd/system/redclub-update.service
   systemctl daemon-reload && systemctl enable --now redclub-update.path >/dev/null 2>&1 || return 0
-  printf '%s\naktionen=update tunnel\n' "$PWD" > "$daten/.updater"; chmod 644 "$daten/.updater"
+  printf '%s\naktionen=update tunnel website\n' "$PWD" > "$daten/.updater"; chmod 644 "$daten/.updater"
   say "==> Update-Dienst eingerichtet (Panel → Version unten links → „Jetzt aktualisieren“)" "==> Update service set up (panel → version at the bottom left → “Update now”)"
 }
 updater_einrichten
@@ -337,7 +375,7 @@ if [ "$MODUS" = "port" ] && [ -n "$DOMAIN" ] && [ "$VHOST" = "ja" ]; then
   fi
   # Gibt es fuer die Domain schon einen fremden Eintrag (z. B. eine alte Vereinsseite)? Dann nichts anfassen — umstellen
   # ist ein bewusster Schritt (siehe Umzug unten), sonst stritten sich zwei Eintraege um die Domain.
-  fremd=$(grep -RlsE "^[[:space:]]*(server_name|ServerName|ServerAlias)[[:space:]]+(.*[[:space:]])?${DOMAIN//./\\.}([[:space:];]|$)" /etc/nginx/sites-enabled /etc/nginx/conf.d /etc/apache2/sites-enabled /etc/httpd/conf.d 2>/dev/null | grep -v 'redclub' | head -1 || true)
+  fremd=$(grep -RlsE "(^|[[:space:];{])(server_name|ServerName|ServerAlias)[[:space:]]+([^;#]*[[:space:]])?${DOMAIN//./\\.}([[:space:];]|$)" /etc/nginx/sites-enabled /etc/nginx/conf.d /etc/apache2/sites-enabled /etc/httpd/conf.d 2>/dev/null | grep -v 'redclub' | head -1 || true)
   # Zeigt der Eintrag schon auf RedClub (z. B. nach dem Umstellen)? Dann ist alles erledigt.
   if [ -n "$fremd" ] && grep -qE "(proxy_pass|ProxyPass[[:space:]]+/)[[:space:]]+http://(127\.0\.0\.1|localhost):${PORT}(/|;|[[:space:]]|$)" "$fremd"; then
     say "==> $DOMAIN zeigt schon auf RedClub ($fremd)." "==> $DOMAIN already points to RedClub ($fremd)."

@@ -106,7 +106,11 @@ Für Heimserver oder Server hinter einer Firewall: RedClub baut über einen eige
 
 ### Eigene Domain für die Vereins-Website
 
-Die Website ist ohne weiteres unter `https://<RedClub-Adresse>/web` erreichbar. Für eine eigene Domain (z. B. `www.meinverein.de`) diese im Panel unter **Website → Gestaltung & Einstellungen** eintragen und einen DNS-Eintrag auf denselben Server setzen — mit eigenem Caddy holt RedClub das Zertifikat selbst. Hinter nginx/Apache einen zweiten Virtual Host auf denselben Port anlegen, beim Cloudflare Tunnel einen weiteren Public Hostname auf `app:3000`.
+Die Website ist ohne weiteres unter `https://<RedClub-Adresse>/web` erreichbar. Eine eigene Domain (z. B. `www.meinverein.de`) richtest du im Panel unter **Website → Gestaltung & Einstellungen → Adresse** ein — je nach Installation:
+
+- **Eigener Caddy:** DNS-Eintrag auf den Server setzen, das Zertifikat holt RedClub beim ersten Aufruf selbst.
+- **Cloudflare Tunnel (automatisch eingerichtet):** RedClub trägt die Domain selbst als weiteren Hostnamen im Tunnel ein und legt den DNS-Eintrag an. Beim Tunnel per Token den Hostnamen im Cloudflare-Dashboard ergänzen.
+- **Hinter nginx/Apache:** Der Server-Dienst legt einen Virtual Host für die Domain an und holt per certbot das Zertifikat (HTTPS-Weiterleitung, HSTS). Fremde Einträge für die Domain fasst er nicht an. Auf älteren Installationen dafür einmal `sudo bash install.sh` ausführen.
 
 ### RedDrop für Dateien und Fotos
 
@@ -134,6 +138,10 @@ sudo bash /opt/redclub/install.sh --deinstallieren
 ```
 
 Stoppt und entfernt die Container und die Webserver-Einträge von RedClub (gesichert nach `/root/redclub-backup`). Vereinsdaten und Ordner werden nur nach einer Rückfrage und dem Eintippen von `loeschen` gelöscht; sonst bleiben sie für einen Neustart erhalten.
+
+## Umzug auf einen anderen Server
+
+Panel → **Einstellungen → Umzug** (nur der Inhaber): „Umzugsdatei erstellen“ packt alle Vereinsdaten, Konten, Einstellungen, Belege und Website-Bilder in eine mit deinem Passwort verschlüsselte Datei (`.rcumzug`). Auf dem neuen Server RedClub installieren und einrichten, dann dort unter **Umzug** die Datei hochladen. Danach gelten die Konten des alten RedClub; Adresse, HTTPS und Lizenz der neuen Installation bleiben. Vor dem Import legt RedClub eine Sicherung des bisherigen Stands an (7 Tage).
 
 ## Sicherung
 
