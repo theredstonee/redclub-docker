@@ -1,20 +1,16 @@
 {
-  "version": "1.3.0",
-  "datum": "2026-10-25",
+  "version": "1.3.1",
+  "datum": "2026-10-26",
   "hinweise": {
     "de": [
-      "Website-Baukasten: neue Blöcke — Bildstrecke, eigene Galerie mit Großansicht, Sponsoren (auch als Laufband), Team mit Fotos, Zahlen, Video (lädt erst nach Klick), Downloads, Countdown, Zitat, Bild & Text",
-      "Gestaltung je Abschnitt (Hintergrund, Foto, Breite, Abstand, Kante), sechs Vorlagen mit eigenen Schriften, dunkle Variante, sanftes Scrollen und Animationen — alles selbst ausgeliefert",
-      "Editor: Blöcke per Ziehen verschieben, Rückgängig/Wiederholen, Live-Vorschau mit Animationen, freie Fotos zur Auswahl",
-      "Eigene Seiten für News und Termine (mit Anmeldung für Gäste), Berichte/Blog, englische Fassung, Besucherzahlen ohne Cookies, Cookie-Hinweis, Impressum und Datenschutz frei bearbeitbar",
-      "TRS Ticket-Portal: Support-Formular mit euren Themen und Feldern, Kontaktformular als Ticket, Tickets im Panel und im Mitgliederbereich"
+      "Neu: update.sh aktualisiert nur, richtet nichts neu ein und fragt nichts: curl -fsSL https://raw.githubusercontent.com/theredstonee/redclub-docker/main/update.sh | sudo bash",
+      "„Jetzt aktualisieren“ im Panel bringt jetzt auch Compose-Dateien und den Update-Dienst selbst auf den neuesten Stand (alte Dateien landen in .sicherung/)",
+      "Ist der Dienst auf dem Server noch eine alte Fassung, zeigt das Panel den Befehl zum Kopieren — einmal ausführen, danach geht alles per Knopf"
     ],
     "en": [
-      "Website builder: new blocks — slideshow, own gallery with lightbox, sponsors (also as a moving band), team with photos, numbers, video (loads only after a click), downloads, countdown, quote, image & text",
-      "Styling per section (background, photo, width, spacing, edge), six templates with their own fonts, dark variant, smooth scrolling and animations — all served by RedClub itself",
-      "Editor: drag blocks to reorder, undo/redo, live preview with animations, free photos to choose from",
-      "Own pages for news and events (with guest sign-up), reports/blog, English version, visitor counts without cookies, cookie notice, imprint and privacy policy freely editable",
-      "TRS ticket portal: support form with your topics and fields, contact form as a ticket, tickets in the panel and in the members area"
+      "New: update.sh only updates, sets nothing up again and asks nothing: curl -fsSL https://raw.githubusercontent.com/theredstonee/redclub-docker/main/update.sh | sudo bash",
+      "“Update now” in the panel now also brings the compose files and the update service itself up to date (old files go to .sicherung/)",
+      "If the service on the server is still an old version, the panel shows the command to copy — run it once, then everything works with one click"
     ]
   }
 }

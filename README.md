@@ -19,8 +19,7 @@ By [TheRedStonee](https://www.theredstonee.de/) · 5 Tage kostenlos testen, dana
 - **Spenden:** Online-Spenden, **Zuwendungsbestätigungen** nach amtlichem Muster (DE), Jahresmeldung an **FinanzOnline** (AT).
 - **Urkunden und Qualifikationen:** Urkunden als PDF mit eigenen Vorlagen und Prüf-Link, Lizenzen und Ausbildungen mit Ablaufdatum und Erinnerung.
 - **Stunden:** Helfer- und Pflichtstunden (mit Ersatzabgabe), Trainer- und Übungsleiter-Abrechnung mit Jahresgrenzen, Projekte und Vorstandsarbeit.
-- **Website-Baukasten:** die Vereins-Homepage aus über 25 Blöcken — Titelbild, Bildstrecke, Galerie mit Großansicht, Team mit Fotos, Zahlen, Sponsoren-Laufband, Video (lädt erst nach Klick), Downloads, Countdown, Termine, News, Berichte, Mitgliedsantrag, Spenden und mehr. Gestaltung je Abschnitt (Hintergrund, Foto, Breite, Kante), sechs Vorlagen mit eigenen Schriften, dunkle Variante, sanftes Scrollen und Animationen; freie Fotos zum Loslegen. Editor mit Ziehen & Ablegen, Rückgängig und Live-Vorschau. Eigene Seiten für News und Termine (mit Anmeldung für Gäste), Berichte/Blog, englische Fassung, Besucherzahlen ohne Cookies. Alles selbst ausgeliefert — keine Google Fonts, kein Tracking. Auf eurer eigenen Domain mit automatischem HTTPS oder unter `/web`; Impressum und Datenschutz automatisch oder selbst geschrieben.
-- **Support mit dem TRS Ticket-Portal:** Support-Formular auf der Website mit den Themen und Feldern eures Portals, Kontaktformular auf Wunsch als Ticket, Tickets beantworten im Panel, Mitglieder sehen ihre Anfragen im Mitgliederbereich. Der geheime API-Schlüssel bleibt auf eurem Server.
+- **Website-Baukasten:** die Vereins-Homepage aus Blöcken (Titelbild, Text, Termine, Trainingszeiten, News, Vorstand, Beiträge, Spenden, Galerie, Anfahrt, Fragen) mit Live-Vorschau — auf eurer eigenen Domain mit automatischem HTTPS oder unter `/web`. Mitgliedsantrag (auf Wunsch mit SEPA-Mandat) und Kontaktformular landen direkt im Panel; Impressum und Datenschutz entstehen aus den Vereinsdaten.
 - **Verbindungen:** Dateien und Fotos über [RedDrop](https://www.theredstonee.de/reddrop/) (Ordner im Mitgliederbereich, Upload-Links), **Anmeldung mit dem RedClub-Zugang** in anderen Apps (OpenID Connect), automatische Mitglieder-Lizenzen aus einer [TRS License](https://www.theredstonee.de/license/).
 - **Konten für den Vorstand** mit Rollen (Inhaber, Admin, Mitarbeit), **Zwei-Faktor-Anmeldung** und **Passkeys**, Protokoll aller Änderungen.
 - **Erreichbar, wie es passt:** eigene Domain mit automatischem HTTPS, hinter eurem nginx/Apache — oder per **Cloudflare Tunnel** ohne offene Ports.
@@ -123,7 +122,15 @@ Panel → **Einstellungen → Benachrichtigungen → Push aufs Handy** → „Au
 
 ## Update
 
-Am einfachsten im Panel: unten links in der Seitenleiste steht die Version — ein roter Punkt heißt „neue Version da“, Klick → **Jetzt aktualisieren**. Von Hand:
+Am einfachsten im Panel: unten links in der Seitenleiste steht die Version — ein roter Punkt heißt „neue Version da“, Klick → **Jetzt aktualisieren**. Das holt das neue Image, die aktuellen Compose-Dateien und bringt auch den Update-Dienst selbst auf den neuesten Stand.
+
+Auf dem Server geht dasselbe mit einem Befehl — er richtet **nichts neu ein**, fragt nichts und lässt `.env`, Daten und Domain, wie sie sind (alte Dateien landen in `.sicherung/`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/theredstonee/redclub-docker/main/update.sh | sudo bash
+```
+
+Installationen von vor diesem Befehl brauchen ihn **einmal** — danach aktualisiert der Knopf im Panel auch den Dienst. Ganz von Hand, nur das Image:
 
 ```bash
 cd /opt/redclub
