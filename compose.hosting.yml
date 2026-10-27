@@ -1,0 +1,60 @@
+# RedClub Hosting — PHP (Apache) + MariaDB fuer eigene Websites, WordPress, Joomla, Nextcloud.
+# Wird im Panel eingeschaltet (Hosting → Einschalten); der Update-Dienst haengt diese Datei an COMPOSE_FILE an
+# und erzeugt PHPDB_ROOT_PASSWORD in der .env.
+#
+# Volumes: www (Website-Dateien, App + PHP schreiben), hostkonfig (Apache-/PHP-Konfiguration, Cronjobs — NUR die App
+# schreibt, im PHP-Container schreibgeschuetzt: PHP-Code kann so keine Server-Konfiguration einschleusen),
+# hostlogs (Zugriffs-/Fehlerprotokolle, Status des Waechters — nur der PHP-Container schreibt, die App liest).
+#
+# Netze: web und phpdb liegen NUR im Netz „hosting“. Die RedClub-Datenbank (db) ist von dort nicht erreichbar —
+# PHP-Code der Websites kommt also nie an die Vereinsdaten. Die App haengt in beiden Netzen und leitet die
+# Hosting-Domains an web:80 weiter.
+services:
+  app:
+    volumes:
+      - www:/www
+      - hostkonfig:/hostkonfig
+      - hostlogs:/hostlogs:ro
+    environment:
+      RC_HOSTING: "1"
+      RC_PHPDB_ROOT_PASSWORD: ${PHPDB_ROOT_PASSWORD:?PHPDB_ROOT_PASSWORD fehlt in der .env}
+      RC_PHP_VERSION: ${RC_PHP_VERSION:-8.3}
+    networks: [default, hosting]
+
+  web:
+    image: ghcr.io/theredstonee/redclub-php:${RC_PHP_VERSION:-8.3}
+    restart: unless-stopped
+    volumes:
+      - www:/www
+      - hostkonfig:/konfig:ro
+      - hostlogs:/logs
+    networks: [hosting]
+    expose: ["80"]
+    depends_on:
+      phpdb:
+        condition: service_healthy
+    stop_grace_period: 10s
+
+  phpdb:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${PHPDB_ROOT_PASSWORD:?PHPDB_ROOT_PASSWORD fehlt in der .env}
+      MARIADB_AUTO_UPGRADE: "1"
+    volumes:
+      - phpdb:/var/lib/mysql
+    networks: [hosting]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+networks:
+  hosting: {}
+
+volumes:
+  www: {}
+  hostkonfig: {}
+  hostlogs: {}
+  phpdb: {}

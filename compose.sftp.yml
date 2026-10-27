@@ -1,0 +1,9 @@
+# RedClub Hosting — SFTP-Zugang zu den Website-Dateien (nur mit compose.hosting.yml).
+# Wird im Panel eingeschaltet (Hosting → SFTP); der SFTP-Server laeuft in der App selbst, Anmeldung nur mit den
+# SFTP-Konten aus dem Panel, jedes Konto sieht nur seinen Ordner. Port per RC_SFTP_PORT in der .env aenderbar.
+services:
+  app:
+    ports:
+      - "${RC_SFTP_BIND:-0.0.0.0}:${RC_SFTP_PORT:-2222}:2222"
+    environment:
+      RC_SFTP: "1"

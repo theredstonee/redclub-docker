@@ -12,6 +12,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+      # nur lesen: eigene Zertifikate + Seitenbloecke, die RedClub schreibt (siehe Caddyfile „import“)
+      - daten:/rc:ro
     depends_on:
       - app
 

@@ -20,6 +20,10 @@ By [TheRedStonee](https://www.theredstonee.de/) · 5 Tage kostenlos testen, dana
 - **Urkunden und Qualifikationen:** Urkunden als PDF mit eigenen Vorlagen und Prüf-Link, Lizenzen und Ausbildungen mit Ablaufdatum und Erinnerung.
 - **Stunden:** Helfer- und Pflichtstunden (mit Ersatzabgabe), Trainer- und Übungsleiter-Abrechnung mit Jahresgrenzen, Projekte und Vorstandsarbeit.
 - **Website-Baukasten:** die Vereins-Homepage aus Blöcken (Titelbild, Text, Termine, Trainingszeiten, News, Vorstand, Beiträge, Spenden, Galerie, Anfahrt, Fragen) mit Live-Vorschau — auf eurer eigenen Domain mit automatischem HTTPS oder unter `/web`. Mitgliedsantrag (auf Wunsch mit SEPA-Mandat) und Kontaktformular landen direkt im Panel; Impressum und Datenschutz entstehen aus den Vereinsdaten.
+  Dazu Code-Seiten, eigene fertige Websites als ZIP, Weiterleitungen auf eigene Server und vier Vorlagen (Sport, Coding, Musik, Feuerwehr).
+- **Hosting wie bei Plesk/KeyHelp:** weitere Websites mit eigener Domain auf PHP 8.2/8.3/8.4, **WordPress, Joomla und Nextcloud mit einem Klick**, MariaDB-Datenbanken mit Adminer, Dateimanager, SFTP, Cronjobs, Verzeichnisschutz, Weiterleitungen, Sicherungen, Zertifikate im Überblick und Statistik je Domain — [mehr dazu](#hosting).
+- **Module zum Einschalten:** Abstimmungen und digitale Mitgliederversammlung, Inventar mit Verleih und Raumbuchung, Shop, digitaler Mitgliederausweis mit Einlass-Scanner, Auswertungen mit Monatsbericht — und Erweiterungen von Dritten (abgeschottet, nur mit freigegebenen Rechten).
+- **Löschschutz:** Papierkorb für 30 Tage, „Rückgängig“ direkt nach dem Löschen, große Löschungen nur mit eingetipptem Namen.
 - **Verbindungen:** Dateien und Fotos über [RedDrop](https://www.theredstonee.de/reddrop/) (Ordner im Mitgliederbereich, Upload-Links), **Anmeldung mit dem RedClub-Zugang** in anderen Apps (OpenID Connect), automatische Mitglieder-Lizenzen aus einer [TRS License](https://www.theredstonee.de/license/).
 - **Konten für den Vorstand** mit Rollen (Inhaber, Admin, Mitarbeit), **Zwei-Faktor-Anmeldung** und **Passkeys**, Protokoll aller Änderungen.
 - **Erreichbar, wie es passt:** eigene Domain mit automatischem HTTPS, hinter eurem nginx/Apache — oder per **Cloudflare Tunnel** ohne offene Ports.
@@ -39,6 +43,7 @@ By [TheRedStonee](https://www.theredstonee.de/) · 5 Tage kostenlos testen, dana
 | CPU | 1 vCPU | 2 vCPU |
 | RAM | 1 GB | 2 GB |
 | Speicher | 5 GB | 10 GB + Belege und Dokumente |
+| mit Hosting | + 1 GB RAM | + 2 GB RAM, Platz für die Websites |
 
 - Ein Linux-Server (Debian oder Ubuntu) mit Root-Zugriff.
 - Port **80** und **443** von außen erreichbar, ein schon laufender nginx/Apache, hinter den sich RedClub hängt — oder ein [Cloudflare Tunnel](#cloudflare-tunnel-ohne-offene-ports), dann muss gar kein Port offen sein.
@@ -115,6 +120,18 @@ Die Website ist ohne weiteres unter `https://<RedClub-Adresse>/web` erreichbar. 
 ### RedDrop für Dateien und Fotos
 
 Mit eigenem Caddy fragt `install.sh`, ob [RedDrop](https://www.theredstonee.de/reddrop/) gleich mitinstalliert werden soll (eigene Domain nötig). Danach in RedDrop einen API-Token anlegen und in RedClub unter **Verwaltung → Verbindungen** eintragen. Dort lässt sich auch RedClub als Anmelde-Dienst für RedDrop eintragen — Vorstand und Mitglieder melden sich dann mit ihrem RedClub-Zugang an.
+
+## Hosting
+
+Weitere Websites des Vereins (oder WordPress, Joomla, Nextcloud) laufen direkt auf dem RedClub-Server. Einschalten im Panel unter **Module → Hosting**, dann **Hosting → Einschalten** und PHP-Version wählen. Der Update-Dienst startet dafür zwei Container: `web` (Apache mit PHP) und `phpdb` (MariaDB). Beide liegen in einem eigenen Netz — PHP-Code der Websites erreicht weder die Vereinsdatenbank noch RedClub selbst.
+
+- **Seiten:** je Seite eine Domain (auf Wunsch mit `www.`), ein eigener Ordner, eigene PHP-Werte und Speichergrenze. Das Zertifikat kommt wie bei der Vereins-Website von selbst (eigener Caddy, Cloudflare Tunnel oder per certbot hinter nginx/Apache). Eigene Zertifikate oder Cloudflare-Origin-Zertifikate lassen sich je Domain hochladen.
+- **Dateien:** Dateimanager im Browser (hochladen, ZIP entpacken, bearbeiten, Papierkorb) oder per **SFTP** — einschalten unter Hosting → SFTP, Standard-Port `2222` (in der `.env`: `RC_SFTP_PORT`, nur lokal: `RC_SFTP_BIND=127.0.0.1`). Jedes SFTP-Konto sieht nur seine Seite, eine Shell gibt es nicht.
+- **Datenbanken:** je Datenbank ein eigener Benutzer, Host für Apps `phpdb`, Port `3306`. Verwalten im Browser mit Adminer, Import und Export als SQL.
+- **Sicherungen** täglich oder wöchentlich je Seite (Dateien und Datenbanken), Zurückholen mit einem Klick.
+- **Mit Traefik oder Nginx Proxy Manager:** RedClub im Port-Modus installieren und jede Hosting-Domain in deinem Proxy auf den RedClub-Port leiten — RedClub verteilt die Anfragen selbst auf die richtige Seite.
+
+Hosting braucht zusätzlich etwa **1 GB RAM** und den Platz für die Websites. Ausschalten stoppt PHP und MariaDB, Dateien und Datenbanken bleiben erhalten.
 
 ## Push aufs Handy
 

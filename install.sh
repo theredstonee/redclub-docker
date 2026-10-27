@@ -18,7 +18,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/theredstonee/redclub-docker/main/update.sh | sudo bash
 set -euo pipefail
 QUELLE="${RC_QUELLE:-https://raw.githubusercontent.com/theredstonee/redclub-docker/main}"   # RC_QUELLE nur fuer Tests
-DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml Caddyfile install.sh update.sh .env.example README.md version.json"
+DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.hosting.yml compose.sftp.yml Caddyfile install.sh update.sh .env.example README.md version.json"
 # Ueber curl | bash gestartet (oder Dateien fehlen): alles nach /opt/redclub holen und dort weitermachen
 if [ -f "$0" ] && [ -f "$(dirname "$0")/docker-compose.yml" ]; then
   cd "$(dirname "$0")"
@@ -185,103 +185,221 @@ updater_einrichten() {
   # Docker als Snap: docker inspect nennt /var/lib/docker/…, auf dem Server liegt es unter /var/snap/docker/common/var-lib-docker/…
   if [ -n "$daten" ] && [ ! -d "$daten" ] && [ -d "/var/snap/docker/common/var-lib-docker${daten#/var/lib/docker}" ]; then daten="/var/snap/docker/common/var-lib-docker${daten#/var/lib/docker}"; fi
   [ -n "$daten" ] && [ -d "$daten" ] || { DIENST_GRUND="$(s "Der Datenordner der App ($daten) ist vom Server aus nicht lesbar (Docker rootless oder in einer VM?)." "The app data folder ($daten) is not readable from the server (rootless Docker or inside a VM?).")"; return 1; }
-  cat > /usr/local/bin/redclub-update.neu <<SKRIPT
-#!/usr/bin/env bash
-# RedClub — Update auf Anfrage aus dem Panel (angelegt von install.sh, systemd: redclub-update.path)
+# >>> DIENST (aus deploy/dienst.sh, eingebettet von deploy/einbetten.py — hier nicht von Hand aendern)
+  { printf '#!/usr/bin/env bash\n# RedClub — Update-Dienst (angelegt von install.sh; systemd: redclub-update.path)\n'
+    printf 'DIR=%q\nDATEN=%q\nQUELLE=%q\n' "$PWD" "$daten" "$QUELLE"
+    cat <<'SKRIPT'
+# RedClub — Update-Dienst (Stand 3). install.sh schreibt diese Datei nach /usr/local/bin/redclub-update und setzt
+# davor DIR (Installationsordner), DATEN (Daten-Volume der App auf dem Server) und QUELLE (Download-Adresse).
+#
+# Die App legt Auftraege als JSON in $DATEN/.anfragen/ ab (alte Apps: eine Datei $DATEN/.update-anfrage).
+# Jeder Auftrag hat eine id; das Ergebnis steht danach in $DATEN/.status/<id>.json (dazu fuer alte Apps die
+# bisherigen Sammeldateien .update-status, .tunnel-status, .website-status).
+# Es gibt nur die festen Aktionen unten — der Dienst fuehrt nie Befehle aus der Anfrage aus.
 set -uo pipefail
-DIR="$PWD"; DATEN="$daten"; QUELLE="$QUELLE"
-[ -f "\$DATEN/.update-anfrage" ] || exit 0
-aktion=\$(sed -n 's/.*"aktion":"\([a-z-]*\)".*/\1/p' "\$DATEN/.update-anfrage")
-tok=\$(sed -n 's#.*"token":"\([A-Za-z0-9+/=_-]*\)".*#\1#p' "\$DATEN/.update-anfrage")
-dom=\$(sed -n 's/.*"domain":"\([a-z0-9.-]*\)".*/\1/p' "\$DATEN/.update-anfrage")
-rm -f "\$DATEN/.update-anfrage"
-status() { printf '{"status":"%s","zeit":"%s","meldung":"%s"}\n' "\$2" "\$(date -Is)" "\$3" > "\$DATEN/\$1"; chmod 644 "\$DATEN/\$1"; }
-kurz() { echo "\$1" | tail -3 | tr '\n"\\\\' '   '; }
-profil() { # profil an|aus name — Profil in COMPOSE_PROFILES der .env
-  local n="\$2" p; p=\$(sed -n 's/^COMPOSE_PROFILES=//p' .env | tail -1 | tr ',' ' ')
-  p=\$(echo " \$p " | sed "s/ \$n / /g" | xargs)
-  [ "\$1" = "an" ] && p=\$(echo "\$p \$n" | xargs)
-  sed -i '/^COMPOSE_PROFILES=/d' .env
-  [ -z "\$p" ] || echo "COMPOSE_PROFILES=\$(echo "\$p" | tr ' ' ',')" >> .env
+umask 022
+mkdir -p "$DATEN/.anfragen" "$DATEN/.status"
+# die App (uid 1000) muss Auftraege ablegen und Status lesen koennen
+chown 1000:1000 "$DATEN/.anfragen" "$DATEN/.status" 2>/dev/null || true
+
+feld() { sed -n "s#.*\"$1\":\"\\([$2]*\\)\".*#\\1#p" "$3" | head -1; }
+schreib() { # schreib <id> <alte Sammeldatei> <status> <meldung>
+  local z m; z=$(date -Is); m=$(printf '%s' "$4" | tr '\n"\\' '   ' | cut -c1-600)
+  [ -n "$1" ] && { printf '{"id":"%s","status":"%s","zeit":"%s","meldung":"%s"}\n' "$1" "$3" "$z" "$m" > "$DATEN/.status/$1.json"; chmod 644 "$DATEN/.status/$1.json"; }
+  [ -n "$2" ] && { printf '{"status":"%s","zeit":"%s","meldung":"%s"}\n' "$3" "$z" "$m" > "$DATEN/$2"; chmod 644 "$DATEN/$2"; }
+  return 0
 }
-cd "\$DIR" || { status .update-status fehler "Ordner \$DIR fehlt"; exit 1; }
-case "\${aktion:-update}" in
-  tunnel-an)
-    status .tunnel-status laeuft ""
-    [ -n "\$tok" ] || { status .tunnel-status fehler "Kein Tunnel-Token in der Anfrage"; exit 1; }
-    sed -i '/^RC_TUNNEL_TOKEN=/d' .env; echo "RC_TUNNEL_TOKEN=\$tok" >> .env; chmod 600 .env
-    profil an tunnel
-    if out=\$(docker compose up -d cloudflared 2>&1); then status .tunnel-status fertig ""; else status .tunnel-status fehler "\$(kurz "\$out")"; fi ;;
-  tunnel-aus)
-    status .tunnel-status laeuft ""
-    if out=\$(docker compose stop cloudflared 2>&1 && docker compose rm -f cloudflared 2>&1); then profil aus tunnel; sed -i '/^RC_TUNNEL_TOKEN=/d' .env; status .tunnel-status fertig ""
-    else status .tunnel-status fehler "\$(kurz "\$out")"; fi ;;
-  website-an|website-aus)
-    # Eigene Domain fuer die Vereins-Website: Virtual Host auf den RedClub-Port + Zertifikat (certbot, HTTPS-Weiterleitung, HSTS)
-    status .website-status laeuft ""
-    port=\$(sed -n 's/^RC_PORT=//p' .env | tail -1)
-    if [ -z "\$dom" ] || [ -z "\$port" ]; then status .website-status fehler "Domain oder Port fehlt"; exit 1; fi
-    ws=""; if command -v nginx >/dev/null 2>&1; then ws=nginx; elif command -v apache2ctl >/dev/null 2>&1; then ws=apache2; elif command -v httpd >/dev/null 2>&1; then ws=httpd; fi
-    [ -n "\$ws" ] || { status .website-status fehler "Kein nginx oder Apache gefunden"; exit 1; }
-    link=""
-    case "\$ws" in
-      nginx) if [ -d /etc/nginx/sites-enabled ]; then datei=/etc/nginx/sites-available/redclub-website.conf; link=/etc/nginx/sites-enabled/redclub-website.conf; else datei=/etc/nginx/conf.d/redclub-website.conf; fi ;;
-      apache2) datei=/etc/apache2/sites-available/redclub-website.conf ;;
-      *) datei=/etc/httpd/conf.d/redclub-website.conf ;;
-    esac
-    neuladen() { case "\$ws" in nginx) nginx -t >/dev/null 2>&1 && { systemctl reload nginx 2>/dev/null || nginx -s reload; } ;; apache2) apache2ctl configtest >/dev/null 2>&1 && systemctl reload apache2 ;; *) httpd -t >/dev/null 2>&1 && systemctl reload httpd ;; esac; }
-    [ -f "\$datei" ] && cp -a "\$datei" "/root/redclub-website.conf.bak-\$(date +%Y%m%d-%H%M%S)"
-    if [ "\$aktion" = "website-aus" ]; then
-      [ "\$ws" = "apache2" ] && a2dissite -q redclub-website.conf >/dev/null 2>&1
-      rm -f "\$datei" \$link
-      command -v certbot >/dev/null 2>&1 && certbot delete --cert-name "\$dom" -n >/dev/null 2>&1
-      if neuladen; then status .website-status fertig "entfernt"; else status .website-status fehler "Konfigtest des Webservers schlaegt fehl"; fi
-      exit 0
-    fi
-    dom_re=\$(printf '%s' "\$dom" | sed 's/[.]/[.]/g')
-    fremd=\$(grep -RlsE "(^|[[:space:];{])(server_name|ServerName|ServerAlias)[[:space:]]+([^;#]*[[:space:]])?\${dom_re}([[:space:];]|\$)" /etc/nginx/sites-enabled /etc/nginx/conf.d /etc/apache2/sites-enabled /etc/httpd/conf.d 2>/dev/null | grep -v 'redclub-website' | head -1)
-    [ -z "\$fremd" ] || { status .website-status fehler "Fuer \$dom gibt es schon einen Eintrag (\$fremd), den fasse ich nicht an"; exit 1; }
-    if [ "\$ws" = "nginx" ]; then
-      printf '%s\n' "# RedClub-Website, angelegt vom Update-Dienst" "server {" "    listen 80;" "    listen [::]:80;" "    server_name \$dom;" "    client_max_body_size 20m;" "    location / {" "        proxy_pass http://127.0.0.1:\$port;" "        proxy_http_version 1.1;" '        proxy_set_header Host \$host;' '        proxy_set_header X-Real-IP \$remote_addr;' '        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;' '        proxy_set_header X-Forwarded-Proto \$scheme;' "    }" "}" > "\$datei"
-      [ -n "\$link" ] && ln -sf "\$datei" "\$link"
-    else
-      printf '%s\n' "# RedClub-Website, angelegt vom Update-Dienst" "<VirtualHost *:80>" "    ServerName \$dom" "    ProxyPreserveHost On" "    ProxyPass / http://127.0.0.1:\$port/" "    ProxyPassReverse / http://127.0.0.1:\$port/" '    RequestHeader set X-Forwarded-Proto "expr=%{REQUEST_SCHEME}"' "</VirtualHost>" > "\$datei"
-      [ "\$ws" = "apache2" ] && { a2enmod -q proxy proxy_http headers >/dev/null 2>&1; a2ensite -q redclub-website.conf >/dev/null 2>&1; }
-    fi
-    neuladen || { rm -f "\$datei" \$link; neuladen; status .website-status fehler "Konfigtest des Webservers schlaegt fehl, Eintrag wieder entfernt"; exit 1; }
-    plugin=nginx; [ "\$ws" = "nginx" ] || plugin=apache
-    if ! command -v certbot >/dev/null 2>&1; then { apt-get install -y -qq certbot "python3-certbot-\$plugin" || dnf install -y -q certbot "python3-certbot-\$plugin"; } >/dev/null 2>&1; fi
-    if out=\$(certbot "--\$plugin" -d "\$dom" --redirect --hsts -n --agree-tos --register-unsafely-without-email 2>&1); then status .website-status fertig "https"
-    else status .website-status fehler "Virtual Host steht, aber das Zertifikat fehlt (zeigt der DNS-Eintrag auf diesen Server?): \$(kurz "\$out")"; fi ;;
-  *)
-    status .update-status laeuft ""
-    # Erst das neueste update.sh holen: es bringt Dateien, Image und diesen Dienst selbst auf den neuesten Stand
-    neu=\$(mktemp)
-    if curl -fsSL --max-time 30 -o "\$neu" "\$QUELLE/update.sh?t=\$(date +%s)" 2>/dev/null && bash -n "\$neu" 2>/dev/null; then
-      RC_QUELLE="\$QUELLE" exec bash "\$neu" --dir "\$DIR" --status "\$DATEN/.update-status"
-    fi
-    rm -f "\$neu"
-    # GitHub nicht erreichbar: wie bisher nur die Images
-    dienste="app"; grep -q '^COMPOSE_PROFILES=.*tunnel' .env && dienste="\$dienste cloudflared"
-    if out=\$(docker compose pull \$dienste 2>&1 && docker compose up -d \$dienste 2>&1); then status .update-status fertig ""
-    else status .update-status fehler "\$(kurz "\$out")"; fi ;;
-esac
+kurz() { printf '%s' "$1" | tail -3 | tr '\n' ' '; }
+env_setzen() { sed -i "/^$1=/d" .env; echo "$1=$2" >> .env; chmod 600 .env; }
+env_lesen() { sed -n "s/^$1=//p" .env | tail -1; }
+profil() { # profil an|aus name — Profil in COMPOSE_PROFILES
+  local n="$2" p; p=$(env_lesen COMPOSE_PROFILES | tr ',' ' ')
+  p=$(echo " $p " | sed "s/ $n / /g" | xargs)
+  [ "$1" = "an" ] && p=$(echo "$p $n" | xargs)
+  sed -i '/^COMPOSE_PROFILES=/d' .env
+  [ -z "$p" ] || echo "COMPOSE_PROFILES=$(echo "$p" | tr ' ' ',')" >> .env
+}
+datei_an() { # datei_an an|aus compose.x.yml — Zusatzdatei in COMPOSE_FILE
+  local f; f=$(env_lesen COMPOSE_FILE); [ -n "$f" ] || f="docker-compose.yml"
+  f=$(echo ":$f:" | sed "s/:$2:/:/g; s/^://; s/:$//")
+  [ "$1" = "an" ] && f="$f:$2"
+  env_setzen COMPOSE_FILE "$f"
+}
+holen() { [ -f "$1" ] || curl -fsSL --max-time 30 -o "$1" "$QUELLE/$1?t=$(date +%s)"; }
+geheim() { head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; }
+
+# Webserver auf dem Host (nur Port-Modus): nginx oder Apache
+ws_finden() {
+  WS=""; if command -v nginx >/dev/null 2>&1; then WS=nginx; elif command -v apache2ctl >/dev/null 2>&1; then WS=apache2; elif command -v httpd >/dev/null 2>&1; then WS=httpd; fi
+}
+neuladen() { case "$WS" in nginx) nginx -t >/dev/null 2>&1 && { systemctl reload nginx 2>/dev/null || nginx -s reload; } ;; apache2) apache2ctl configtest >/dev/null 2>&1 && systemctl reload apache2 ;; *) httpd -t >/dev/null 2>&1 && systemctl reload httpd ;; esac; }
+ws_datei() { # ws_datei <name> → DATEI/LINK
+  LINK=""
+  case "$WS" in
+    nginx) if [ -d /etc/nginx/sites-enabled ]; then DATEI=/etc/nginx/sites-available/$1.conf; LINK=/etc/nginx/sites-enabled/$1.conf; else DATEI=/etc/nginx/conf.d/$1.conf; fi ;;
+    apache2) DATEI=/etc/apache2/sites-available/$1.conf ;;
+    *) DATEI=/etc/httpd/conf.d/$1.conf ;;
+  esac
+}
+
+# domain_an <id> <altdatei> <domain> "<aliase>" <zert: auto|eigen>
+domain_an() {
+  local id="$1" alt="$2" dom="$3" alias="$4" zert="$5" port bind name fremd re namen n
+  port=$(env_lesen RC_PORT); bind=$(env_lesen RC_BIND); [ -n "$bind" ] && [ "$bind" != "0.0.0.0" ] || bind=127.0.0.1
+  [ -n "$dom" ] && [ -n "$port" ] || { schreib "$id" "$alt" fehler "Domain oder Port fehlt (laeuft RedClub im Port-Modus?)"; return 1; }
+  ws_finden; [ -n "$WS" ] || { schreib "$id" "$alt" fehler "Kein nginx oder Apache auf dem Server gefunden"; return 1; }
+  name="redclub-$dom"; ws_datei "$name"
+  namen="$dom $alias"
+  for n in $namen; do
+    re=$(printf '%s' "$n" | sed 's/[.]/[.]/g')
+    fremd=$(grep -RlsE "(^|[[:space:];{])(server_name|ServerName|ServerAlias)[[:space:]]+([^;#]*[[:space:]])?${re}([[:space:];]|$)" /etc/nginx/sites-enabled /etc/nginx/conf.d /etc/apache2/sites-enabled /etc/httpd/conf.d 2>/dev/null | grep -v 'redclub-' | head -1)
+    [ -z "$fremd" ] || { schreib "$id" "$alt" fehler "Fuer $n gibt es schon einen Eintrag ($fremd), den fasse ich nicht an"; return 1; }
+  done
+  # alte Datei fuer dieselbe Domain (aeltere Fassung: redclub-website.conf) aufraeumen
+  for f in /etc/nginx/sites-available/redclub-website.conf /etc/nginx/conf.d/redclub-website.conf /etc/apache2/sites-available/redclub-website.conf /etc/httpd/conf.d/redclub-website.conf; do
+    [ -f "$f" ] && grep -qE "(server_name|ServerName)[[:space:]]+$(printf '%s' "$dom" | sed 's/[.]/[.]/g')" "$f" && { cp -a "$f" "/root/$(basename "$f").bak-$(date +%Y%m%d-%H%M%S)"; [ "$WS" = apache2 ] && a2dissite -q redclub-website.conf >/dev/null 2>&1; rm -f "$f" /etc/nginx/sites-enabled/redclub-website.conf; }
+  done
+  [ -f "$DATEI" ] && cp -a "$DATEI" "/root/$name.conf.bak-$(date +%Y%m%d-%H%M%S)"
+  local zp="" kp=""
+  if [ "$zert" = "eigen" ]; then
+    zp="/etc/ssl/redclub/$dom/cert.pem"; kp="/etc/ssl/redclub/$dom/key.pem"
+    [ -s "$DATEN/zertifikate/$dom/cert.pem" ] && [ -s "$DATEN/zertifikate/$dom/key.pem" ] || { schreib "$id" "$alt" fehler "Das hochgeladene Zertifikat fehlt im Datenordner"; return 1; }
+    mkdir -p "/etc/ssl/redclub/$dom"; install -m 644 "$DATEN/zertifikate/$dom/cert.pem" "$zp"; install -m 600 "$DATEN/zertifikate/$dom/key.pem" "$kp"
+  fi
+  if [ "$WS" = "nginx" ]; then
+    {
+      echo "# RedClub: $dom (angelegt vom Update-Dienst)"
+      echo "server {"; echo "    listen 80;"; echo "    listen [::]:80;"; echo "    server_name $namen;"
+      if [ -n "$zp" ]; then echo '    return 301 https://$host$request_uri;'; echo "}"; echo "server {"; echo "    listen 443 ssl;"; echo "    listen [::]:443 ssl;"; echo "    server_name $namen;"
+        echo "    ssl_certificate $zp;"; echo "    ssl_certificate_key $kp;"; echo '    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;'; fi
+      echo "    client_max_body_size 200m;"; echo "    location / {"; echo "        proxy_pass http://$bind:$port;"; echo "        proxy_http_version 1.1;"
+      echo '        proxy_set_header Host $host;'; echo '        proxy_set_header X-Real-IP $remote_addr;'; echo '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;'
+      echo '        proxy_set_header X-Forwarded-Proto $scheme;'; echo '        proxy_set_header Upgrade $http_upgrade;'; echo '        proxy_set_header Connection "upgrade";'; echo "    }"; echo "}"
+    } > "$DATEI"
+    [ -n "$LINK" ] && ln -sf "$DATEI" "$LINK"
+  else
+    {
+      echo "# RedClub: $dom (angelegt vom Update-Dienst)"
+      echo "<VirtualHost *:80>"; echo "    ServerName $dom"; [ -n "$alias" ] && echo "    ServerAlias $alias"
+      if [ -n "$zp" ]; then echo '    RewriteEngine On'; echo '    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]'; echo "</VirtualHost>"; echo "<VirtualHost *:443>"; echo "    ServerName $dom"; [ -n "$alias" ] && echo "    ServerAlias $alias"
+        echo "    SSLEngine on"; echo "    SSLCertificateFile $zp"; echo "    SSLCertificateKeyFile $kp"; echo '    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"'; fi
+      echo "    ProxyPreserveHost On"; echo "    ProxyPass / http://$bind:$port/"; echo "    ProxyPassReverse / http://$bind:$port/"
+      echo '    RequestHeader set X-Forwarded-Proto "expr=%{REQUEST_SCHEME}"'; echo "</VirtualHost>"
+    } > "$DATEI"
+    [ "$WS" = "apache2" ] && { a2enmod -q proxy proxy_http headers rewrite ssl >/dev/null 2>&1; a2ensite -q "$name.conf" >/dev/null 2>&1; }
+  fi
+  neuladen || { rm -f "$DATEI" $LINK; neuladen; schreib "$id" "$alt" fehler "Konfigtest des Webservers schlaegt fehl, Eintrag wieder entfernt"; return 1; }
+  [ -n "$zp" ] && { schreib "$id" "$alt" fertig "https"; return 0; }
+  local plugin=nginx args="" out
+  [ "$WS" = "nginx" ] || plugin=apache
+  if ! command -v certbot >/dev/null 2>&1; then { apt-get install -y -qq certbot "python3-certbot-$plugin" || dnf install -y -q certbot "python3-certbot-$plugin"; } >/dev/null 2>&1; fi
+  for n in $namen; do args="$args -d $n"; done
+  # erst mit allen Namen; zeigt ein Zusatzname (z. B. www) noch nicht hierher, dann nur die Hauptdomain
+  if out=$(certbot "--$plugin" $args --cert-name "$dom" --redirect --hsts -n --agree-tos --register-unsafely-without-email 2>&1); then schreib "$id" "$alt" fertig "https"
+  elif [ -n "$alias" ] && out=$(certbot "--$plugin" -d "$dom" --cert-name "$dom" --redirect --hsts -n --agree-tos --register-unsafely-without-email 2>&1); then schreib "$id" "$alt" fertig "https-ohne-alias"
+  else schreib "$id" "$alt" fehler "Virtual Host steht, aber das Zertifikat fehlt (zeigt der DNS-Eintrag auf diesen Server?): $(kurz "$out")"; fi
+}
+domain_aus() {
+  local id="$1" alt="$2" dom="$3"
+  ws_finden; [ -n "$WS" ] || { schreib "$id" "$alt" fertig "entfernt"; return 0; }
+  ws_datei "redclub-$dom"
+  [ -f "$DATEI" ] && cp -a "$DATEI" "/root/redclub-$dom.conf.bak-$(date +%Y%m%d-%H%M%S)"
+  [ "$WS" = "apache2" ] && a2dissite -q "redclub-$dom.conf" >/dev/null 2>&1
+  rm -f "$DATEI" $LINK
+  for f in /etc/nginx/sites-available/redclub-website.conf /etc/nginx/conf.d/redclub-website.conf /etc/apache2/sites-available/redclub-website.conf /etc/httpd/conf.d/redclub-website.conf; do
+    [ -f "$f" ] && grep -qE "(server_name|ServerName)[[:space:]]+$(printf '%s' "$dom" | sed 's/[.]/[.]/g')" "$f" && { [ "$WS" = apache2 ] && a2dissite -q redclub-website.conf >/dev/null 2>&1; rm -f "$f" /etc/nginx/sites-enabled/redclub-website.conf; }
+  done
+  rm -rf "/etc/ssl/redclub/$dom"
+  command -v certbot >/dev/null 2>&1 && certbot delete --cert-name "$dom" -n >/dev/null 2>&1
+  if neuladen; then schreib "$id" "$alt" fertig "entfernt"; else schreib "$id" "$alt" fehler "Konfigtest des Webservers schlaegt fehl"; fi
+}
+
+bearbeiten() { # bearbeiten <anfrage-datei>
+  local f="$1" id aktion tok dom alias php zert out
+  id=$(feld id 'a-z0-9-' "$f"); aktion=$(feld aktion 'a-z-' "$f"); tok=$(feld token 'A-Za-z0-9+/=_-' "$f")
+  dom=$(feld domain 'a-z0-9.-' "$f"); alias=$(feld aliase 'a-z0-9. -' "$f"); php=$(feld php '0-9.' "$f"); zert=$(feld zert 'a-z' "$f")
+  # Ohne Aktion gilt „update“ nur fuer die Datei alter Apps — sonst ist der Auftrag kaputt
+  if [ -z "$aktion" ] && [ "$(basename "$f")" != "0-alt.json" ]; then rm -f "$f"; schreib "$id" "" fehler "Auftrag ohne gueltige Aktion"; return 1; fi
+  rm -f "$f"
+  cd "$DIR" || { schreib "$id" .update-status fehler "Ordner $DIR fehlt"; return 1; }
+  case "${aktion:-update}" in
+    tunnel-an)
+      schreib "$id" .tunnel-status laeuft ""
+      [ -n "$tok" ] || { schreib "$id" .tunnel-status fehler "Kein Tunnel-Token in der Anfrage"; return 1; }
+      env_setzen RC_TUNNEL_TOKEN "$tok"; profil an tunnel
+      if out=$(docker compose up -d cloudflared 2>&1); then schreib "$id" .tunnel-status fertig ""; else schreib "$id" .tunnel-status fehler "$(kurz "$out")"; fi ;;
+    tunnel-aus)
+      schreib "$id" .tunnel-status laeuft ""
+      if out=$(docker compose stop cloudflared 2>&1 && docker compose rm -f cloudflared 2>&1); then profil aus tunnel; sed -i '/^RC_TUNNEL_TOKEN=/d' .env; schreib "$id" .tunnel-status fertig ""
+      else schreib "$id" .tunnel-status fehler "$(kurz "$out")"; fi ;;
+    website-an|domain-an) schreib "$id" .website-status laeuft ""; domain_an "$id" .website-status "$dom" "$alias" "${zert:-auto}" ;;
+    website-aus|domain-aus) schreib "$id" .website-status laeuft ""; domain_aus "$id" .website-status "$dom" ;;
+    hosting-an)
+      schreib "$id" "" laeuft ""
+      holen compose.hosting.yml || { schreib "$id" "" fehler "compose.hosting.yml liess sich nicht laden"; return 1; }
+      [ -n "$(env_lesen PHPDB_ROOT_PASSWORD)" ] || env_setzen PHPDB_ROOT_PASSWORD "$(geheim)"
+      [ -n "$(env_lesen RC_PHP_VERSION)" ] || env_setzen RC_PHP_VERSION "${php:-8.3}"
+      datei_an an compose.hosting.yml
+      if out=$(docker compose pull --ignore-pull-failures web phpdb 2>&1 && docker compose up -d web phpdb app 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
+    hosting-aus)
+      schreib "$id" "" laeuft ""
+      docker compose stop web phpdb >/dev/null 2>&1; docker compose rm -f web phpdb >/dev/null 2>&1
+      datei_an aus compose.hosting.yml; datei_an aus compose.sftp.yml
+      # Daten (Volumes www, phpdb) bleiben erhalten
+      if out=$(docker compose up -d app 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
+    php-version)
+      schreib "$id" "" laeuft ""
+      case "$php" in 8.2|8.3|8.4) ;; *) schreib "$id" "" fehler "Unbekannte PHP-Version $php"; return 1 ;; esac
+      env_setzen RC_PHP_VERSION "$php"
+      if out=$(docker compose pull --ignore-pull-failures web 2>&1 && docker compose up -d web 2>&1); then schreib "$id" "" fertig "$php"; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
+    sftp-an|sftp-aus)
+      schreib "$id" "" laeuft ""
+      if [ "$aktion" = "sftp-an" ]; then holen compose.sftp.yml || { schreib "$id" "" fehler "compose.sftp.yml liess sich nicht laden"; return 1; }; datei_an an compose.sftp.yml; else datei_an aus compose.sftp.yml; fi
+      if out=$(docker compose up -d app 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
+    caddy-neu)
+      schreib "$id" "" laeuft ""
+      if out=$(docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
+    *)
+      schreib "$id" .update-status laeuft ""
+      # Erst das neueste update.sh holen: es bringt Dateien, Images und diesen Dienst selbst auf den neuesten Stand
+      local neu; neu=$(mktemp)
+      if curl -fsSL --max-time 30 -o "$neu" "$QUELLE/update.sh?t=$(date +%s)" 2>/dev/null && bash -n "$neu" 2>/dev/null; then
+        [ -n "$id" ] && export RC_STATUS_ID="$id"
+        RC_QUELLE="$QUELLE" exec bash "$neu" --dir "$DIR" --status "$DATEN/.update-status"
+      fi
+      rm -f "$neu"
+      # GitHub nicht erreichbar: nur die Images
+      local dienste="app"; grep -q '^COMPOSE_PROFILES=.*tunnel' .env && dienste="$dienste cloudflared"; grep -q 'compose.hosting.yml' .env && dienste="$dienste web phpdb"
+      if out=$(docker compose pull $dienste 2>&1 && docker compose up -d $dienste 2>&1); then schreib "$id" .update-status fertig ""
+      else schreib "$id" .update-status fehler "$(kurz "$out")"; fi ;;
+  esac
+}
+
+# Alte Apps legen genau eine Datei ab, neue einen Ordner voller Auftraege — beides der Reihe nach abarbeiten
+[ -f "$DATEN/.update-anfrage" ] && mv -f "$DATEN/.update-anfrage" "$DATEN/.anfragen/0-alt.json"
+for f in $(ls -1 "$DATEN/.anfragen/"*.json 2>/dev/null | sort); do bearbeiten "$f"; done
+# Status-Dateien aelter als 7 Tage weg
+find "$DATEN/.status" -name '*.json' -mtime +7 -delete 2>/dev/null
+exit 0
 SKRIPT
+  } > /usr/local/bin/redclub-update.neu
+# <<< DIENST
   # erst fertig schreiben, dann umbenennen: ein gerade laufender Dienst liest so seine alte Fassung zu Ende
   chmod 755 /usr/local/bin/redclub-update.neu && mv -f /usr/local/bin/redclub-update.neu /usr/local/bin/redclub-update
   local ausloeser=""
   if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
-    printf '%s\n' "[Unit]" "Description=RedClub: Update-Anfrage aus dem Panel" "[Path]" "PathExists=$daten/.update-anfrage" "[Install]" "WantedBy=multi-user.target" > /etc/systemd/system/redclub-update.path
+    mkdir -p "$daten/.anfragen" "$daten/.status"; chown 1000:1000 "$daten/.anfragen" "$daten/.status" 2>/dev/null || true
+    printf '%s\n' "[Unit]" "Description=RedClub: Auftrag aus dem Panel" "[Path]" "PathExists=$daten/.update-anfrage" "DirectoryNotEmpty=$daten/.anfragen" "[Install]" "WantedBy=multi-user.target" > /etc/systemd/system/redclub-update.path
     printf '%s\n' "[Unit]" "Description=RedClub aktualisieren" "[Service]" "Type=oneshot" "ExecStart=/usr/local/bin/redclub-update" > /etc/systemd/system/redclub-update.service
     if systemctl daemon-reload && systemctl enable --now redclub-update.path >/dev/null 2>&1; then ausloeser="systemd"; rm -f /etc/cron.d/redclub-update; fi
   fi
   # Ohne systemd (z. B. Container-Server, Alpine): cron schaut jede Minute nach einer Anfrage
   if [ -z "$ausloeser" ] && [ -d /etc/cron.d ] && { pgrep -x cron >/dev/null 2>&1 || pgrep -x crond >/dev/null 2>&1; }; then
-    printf '%s\n' "# RedClub: Update-Anfrage aus dem Panel (angelegt von install.sh, ohne systemd)" "* * * * * root [ -f \"$daten/.update-anfrage\" ] && /usr/local/bin/redclub-update >/dev/null 2>&1" > /etc/cron.d/redclub-update
+    printf '%s\n' "# RedClub: Auftrag aus dem Panel (angelegt von install.sh, ohne systemd)" "* * * * * root /usr/local/bin/redclub-update >/dev/null 2>&1" > /etc/cron.d/redclub-update
     chmod 644 /etc/cron.d/redclub-update; ausloeser="cron"
   fi
   [ -n "$ausloeser" ] || { DIENST_GRUND="$(s "Weder systemd noch cron laufen auf diesem Server – ohne einen davon kann der Knopf im Panel nichts ausloesen." "Neither systemd nor cron is running on this server – without one the panel button cannot trigger anything.")"; return 1; }
-  printf '%s\naktionen=update tunnel website\nstand=2\n' "$PWD" > "$daten/.updater"; chmod 644 "$daten/.updater"
+  printf '%s\naktionen=update tunnel website domain hosting php sftp caddy zert anfragen\nstand=3\n' "$PWD" > "$daten/.updater"; chmod 644 "$daten/.updater"
   say "==> Update-Dienst eingerichtet ($ausloeser; Panel → Version unten links → „Jetzt aktualisieren“)" "==> Update service set up ($ausloeser; panel → version at the bottom left → “Update now”)"
 }
 

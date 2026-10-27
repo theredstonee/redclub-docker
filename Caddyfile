@@ -8,6 +8,10 @@
 	}
 }
 
+# Eigene oder Cloudflare-Origin-Zertifikate (im Panel hochgeladen): je Domain ein Block, den die App
+# nach /data/caddy/ schreibt (hier schreibgeschuetzt unter /rc). Ohne Dateien passiert nichts.
+import /rc/caddy/*.caddy
+
 # HTTP: Setup ueber die IP und Weiterleitung auf HTTPS (macht die App, sobald eine Domain steht).
 :80 {
 	encode gzip zstd

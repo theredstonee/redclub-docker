@@ -13,7 +13,7 @@ set -uo pipefail
 exec </dev/null
 # RC_QUELLE nur fuer Tests (eigener Dateiserver statt GitHub)
 QUELLE="${RC_QUELLE:-https://raw.githubusercontent.com/theredstonee/redclub-docker/main}"
-DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml Caddyfile install.sh update.sh .env.example README.md version.json"
+DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.hosting.yml compose.sftp.yml Caddyfile install.sh update.sh .env.example README.md version.json"
 DIR="${RC_DIR:-}"; STATUS=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -38,6 +38,10 @@ kurz() { printf '%s' "$1" | tail -3 | tr '\n"\\' '   ' | cut -c1-400; }
 status() { # status laeuft|fertig|fehler "Meldung" — nur mit --status (Panel)
   [ -n "$STATUS" ] || return 0
   printf '{"status":"%s","zeit":"%s","meldung":"%s"}\n' "$1" "$(date -Is)" "$(kurz "$2")" > "$STATUS" && chmod 644 "$STATUS"
+  # Update-Dienst ab Stand 3: zusaetzlich unter der Auftrags-ID (die App wartet genau auf diesen Auftrag)
+  if [ -n "${RC_STATUS_ID:-}" ] && [ -d "$(dirname "$STATUS")/.status" ]; then
+    printf '{"id":"%s","status":"%s","zeit":"%s","meldung":"%s"}\n' "$RC_STATUS_ID" "$1" "$(date -Is)" "$(kurz "$2")" > "$(dirname "$STATUS")/.status/$RC_STATUS_ID.json" && chmod 644 "$(dirname "$STATUS")/.status/$RC_STATUS_ID.json"
+  fi
 }
 schritt() { echo "${R}${B}${Z_SCHRITT}${N} ${B}$(s "$1" "$2")${N}"; }
 info() { echo "  ${D}${Z_V}${N} $(s "$1" "$2")"; }
