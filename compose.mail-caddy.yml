@@ -1,0 +1,9 @@
+# RedClub E-Mail mit Caddy: der Mailserver nimmt das Zertifikat, das Caddy fuer RC_MAIL_HOST holt (nur lesen).
+services:
+  mail:
+    volumes:
+      - caddy_data:/rc-caddy:ro
+    environment:
+      SSL_TYPE: manual
+      SSL_CERT_PATH: /rc-caddy/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${RC_MAIL_HOST}/${RC_MAIL_HOST}.crt
+      SSL_KEY_PATH: /rc-caddy/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${RC_MAIL_HOST}/${RC_MAIL_HOST}.key

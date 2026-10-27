@@ -1,0 +1,73 @@
+# RedClub E-Mail — eigener Mailserver (docker-mailserver 16, MIT) fuer die Domains des Vereins.
+# Wird im Panel eingeschaltet (E-Mail → Einschalten); der Update-Dienst haengt diese Datei an COMPOSE_FILE an.
+# Postfaecher, Aliase, Quotas, DKIM und Spamfilter schreibt RedClub als Dateien in das Volume mailkonfig —
+# der Mailserver liest sie alle paar Sekunden und laedt sich selbst neu (kein docker exec, kein Docker-Socket).
+#
+# Ports: 25 (Empfang), 465 (Versand mit Anmeldung, TLS), 587 (Versand, STARTTLS), 993 (IMAP), 4190 (Sieve-Filter).
+# Ein Mailserver muss von aussen erreichbar sein — RC_MAIL_BIND nur fuer Tests auf 127.0.0.1 setzen.
+# TLS: RC_MAIL_SSL_TYPE manual + Zertifikat aus mailkonfig/ssl (selbst erzeugt oder hochgeladen) bzw. die Dateien,
+# die compose.mail-caddy.yml (Caddy) oder compose.mail-le.yml (certbot des Webservers) einhaengen.
+services:
+  app:
+    volumes:
+      - mailkonfig:/mailkonfig
+      # Postfaecher fuer die Backups (restic) — gehoeren dank DMS_VMAIL_UID dem App-Nutzer (1000)
+      - maildaten:/maildaten
+    environment:
+      RC_MAIL: "1"
+      RC_MAIL_DATEN: /maildaten
+      RC_MAIL_HOST: ${RC_MAIL_HOST:?RC_MAIL_HOST fehlt in der .env}
+
+  mail:
+    image: docker.io/mailserver/docker-mailserver:16.0.1
+    hostname: ${RC_MAIL_HOST:?RC_MAIL_HOST fehlt in der .env}
+    restart: unless-stopped
+    ports:
+      - "${RC_MAIL_BIND:-0.0.0.0}:${RC_MAIL_PORT_SMTP:-25}:25"
+      - "${RC_MAIL_BIND:-0.0.0.0}:${RC_MAIL_PORT_SMTPS:-465}:465"
+      - "${RC_MAIL_BIND:-0.0.0.0}:${RC_MAIL_PORT_SUBMISSION:-587}:587"
+      - "${RC_MAIL_BIND:-0.0.0.0}:${RC_MAIL_PORT_IMAPS:-993}:993"
+      - "${RC_MAIL_BIND:-0.0.0.0}:${RC_MAIL_PORT_SIEVE:-4190}:4190"
+    volumes:
+      - mailkonfig:/tmp/docker-mailserver
+      - maildaten:/var/mail
+      - mailstatus:/var/mail-state
+      - maillogs:/var/log/mail
+    environment:
+      ENABLE_RSPAMD: "1"
+      ENABLE_OPENDKIM: "0"
+      ENABLE_OPENDMARC: "0"
+      ENABLE_POLICYD_SPF: "0"
+      ENABLE_AMAVIS: "0"
+      ENABLE_SPAMASSASSIN: "0"
+      ENABLE_CLAMAV: ${RC_MAIL_CLAMAV:-0}
+      ENABLE_FAIL2BAN: "0"
+      ENABLE_POP3: "0"
+      ENABLE_MANAGESIEVE: "1"
+      ENABLE_SRS: "1"
+      SPOOF_PROTECTION: "1"
+      MOVE_SPAM_TO_JUNK: "1"
+      RSPAMD_LEARN: "1"
+      PERMIT_DOCKER: none
+      DMS_VMAIL_UID: "1000"
+      DMS_VMAIL_GID: "1000"
+      ONE_DIR: "1"
+      POSTMASTER_ADDRESS: ${RC_MAIL_POSTMASTER:-postmaster@localhost}
+      SSL_TYPE: ${RC_MAIL_SSL_TYPE:-manual}
+      SSL_CERT_PATH: ${RC_MAIL_CERT:-/tmp/docker-mailserver/ssl/cert.pem}
+      SSL_KEY_PATH: ${RC_MAIL_KEY:-/tmp/docker-mailserver/ssl/key.pem}
+      LOG_LEVEL: warn
+      TZ: ${TZ:-Europe/Berlin}
+    healthcheck:
+      test: ["CMD-SHELL", "ss --listening --tcp | grep -q ':smtp ' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    stop_grace_period: 30s
+
+volumes:
+  mailkonfig: {}
+  maildaten: {}
+  mailstatus: {}
+  maillogs: {}

@@ -18,7 +18,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/theredstonee/redclub-docker/main/update.sh | sudo bash
 set -euo pipefail
 QUELLE="${RC_QUELLE:-https://raw.githubusercontent.com/theredstonee/redclub-docker/main}"   # RC_QUELLE nur fuer Tests
-DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.hosting.yml compose.sftp.yml Caddyfile install.sh update.sh .env.example README.md version.json"
+DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.hosting.yml compose.sftp.yml compose.phpdb.yml compose.mail.yml compose.mail-caddy.yml compose.mail-le.yml Caddyfile install.sh update.sh .env.example README.md version.json"
 # Ueber curl | bash gestartet (oder Dateien fehlen): alles nach /opt/redclub holen und dort weitermachen
 if [ -f "$0" ] && [ -f "$(dirname "$0")/docker-compose.yml" ]; then
   cd "$(dirname "$0")"
@@ -315,9 +315,10 @@ domain_aus() {
 }
 
 bearbeiten() { # bearbeiten <anfrage-datei>
-  local f="$1" id aktion tok dom alias php zert out
+  local f="$1" id aktion tok dom alias php zert schalter port adr out
   id=$(feld id 'a-z0-9-' "$f"); aktion=$(feld aktion 'a-z-' "$f"); tok=$(feld token 'A-Za-z0-9+/=_-' "$f")
-  dom=$(feld domain 'a-z0-9.-' "$f"); alias=$(feld aliase 'a-z0-9. -' "$f"); php=$(feld php '0-9.' "$f"); zert=$(feld zert 'a-z' "$f")
+  dom=$(feld domain 'a-z0-9.-' "$f"); alias=$(feld aliase 'a-z0-9. -' "$f"); php=$(feld php '0-9.' "$f"); zert=$(feld zert 'a-z' "$f"); schalter=$(feld schalter 'a-z' "$f"); port=$(feld port '0-9' "$f")
+  adr=$(feld adresse 'a-z0-9._+@-' "$f")
   # Ohne Aktion gilt „update“ nur fuer die Datei alter Apps — sonst ist der Auftrag kaputt
   if [ -z "$aktion" ] && [ "$(basename "$f")" != "0-alt.json" ]; then rm -f "$f"; schreib "$id" "" fehler "Auftrag ohne gueltige Aktion"; return 1; fi
   rm -f "$f"
@@ -343,19 +344,81 @@ bearbeiten() { # bearbeiten <anfrage-datei>
       if out=$(docker compose pull --ignore-pull-failures web phpdb 2>&1 && docker compose up -d web phpdb app 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
     hosting-aus)
       schreib "$id" "" laeuft ""
-      docker compose stop web phpdb >/dev/null 2>&1; docker compose rm -f web phpdb >/dev/null 2>&1
-      datei_an aus compose.hosting.yml; datei_an aus compose.sftp.yml
+      docker compose stop web web82 web83 web84 web85 phpdb >/dev/null 2>&1; docker compose rm -f web web82 web83 web84 web85 phpdb >/dev/null 2>&1
+      for p in php82 php83 php84 php85; do profil aus "$p"; done
+      datei_an aus compose.hosting.yml; datei_an aus compose.sftp.yml; datei_an aus compose.phpdb.yml
       # Daten (Volumes www, phpdb) bleiben erhalten
       if out=$(docker compose up -d app 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
     php-version)
       schreib "$id" "" laeuft ""
-      case "$php" in 8.2|8.3|8.4) ;; *) schreib "$id" "" fehler "Unbekannte PHP-Version $php"; return 1 ;; esac
+      case "$php" in 8.2|8.3|8.4|8.5) ;; *) schreib "$id" "" fehler "Unbekannte PHP-Version $php"; return 1 ;; esac
       env_setzen RC_PHP_VERSION "$php"
-      if out=$(docker compose pull --ignore-pull-failures web 2>&1 && docker compose up -d web 2>&1); then schreib "$id" "" fertig "$php"; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
+      # die App muss die neue Standard-Version kennen (Weiterleitung der Seiten) — also beide neu starten
+      if out=$(docker compose pull --ignore-pull-failures web 2>&1 && docker compose up -d web app 2>&1); then schreib "$id" "" fertig "$php"; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
+    php-zusatz)
+      # weitere PHP-Version je Seite (2.0): Container web82 … web85 ueber das Profil php82 … php85 ein- oder ausschalten
+      schreib "$id" "" laeuft ""
+      case "$php" in 8.2|8.3|8.4|8.5) ;; *) schreib "$id" "" fehler "Unbekannte PHP-Version $php"; return 1 ;; esac
+      local nr="${php/./}"
+      if [ "$schalter" = an ]; then
+        profil an "php$nr"
+        if out=$(docker compose pull --ignore-pull-failures "web$nr" 2>&1 && docker compose up -d "web$nr" 2>&1); then schreib "$id" "" fertig "PHP $php laeuft"; else schreib "$id" "" fehler "$(kurz "$out")"; fi
+      elif [ "$schalter" = aus ]; then
+        docker compose stop "web$nr" >/dev/null 2>&1; docker compose rm -f "web$nr" >/dev/null 2>&1
+        profil aus "php$nr"; schreib "$id" "" fertig "PHP $php gestoppt"
+      else schreib "$id" "" fehler "schalter fehlt"; return 1; fi ;;
     sftp-an|sftp-aus)
       schreib "$id" "" laeuft ""
       if [ "$aktion" = "sftp-an" ]; then holen compose.sftp.yml || { schreib "$id" "" fehler "compose.sftp.yml liess sich nicht laden"; return 1; }; datei_an an compose.sftp.yml; else datei_an aus compose.sftp.yml; fi
       if out=$(docker compose up -d app 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
+    phpdb-fern)
+      # Fernzugriff auf die Hosting-MariaDB: Port veroeffentlichen (compose.phpdb.yml) oder wieder schliessen
+      schreib "$id" "" laeuft ""
+      if [ "$schalter" = an ]; then
+        # (alle Felder liest der Kopf oben — die Auftragsdatei ist hier schon geloescht)
+        [ -n "$port" ] && [ "$port" -ge 1024 ] && [ "$port" -le 65535 ] || port=3306
+        holen compose.phpdb.yml || { schreib "$id" "" fehler "compose.phpdb.yml liess sich nicht laden"; return 1; }
+        env_setzen RC_PHPDB_FERN_PORT "$port"; datei_an an compose.phpdb.yml
+      elif [ "$schalter" = aus ]; then datei_an aus compose.phpdb.yml
+      else schreib "$id" "" fehler "schalter fehlt"; return 1; fi
+      # --wait: erst „fertig“ melden, wenn MariaDB wieder antwortet (aeltere Compose-Fassungen kennen es nicht)
+      phpdb_hoch() { local o; if o=$(docker compose up -d --wait --wait-timeout 120 phpdb 2>&1); then return 0; fi
+        if printf '%s' "$o" | grep -qi 'unknown flag'; then o=$(docker compose up -d phpdb 2>&1) && return 0; fi
+        printf '%s' "$o"; return 1; }
+      if out=$(phpdb_hoch); then schreib "$id" "" fertig "$schalter"
+      else
+        # z. B. Port schon belegt: MariaDB darf dadurch nicht ausfallen — Freigabe zuruecknehmen und ohne Port neu starten
+        datei_an aus compose.phpdb.yml; phpdb_hoch >/dev/null 2>&1
+        if printf '%s' "$out" | grep -qi 'address already in use\|port is already allocated'; then out="Port $port ist auf dem Server schon belegt — bitte einen anderen waehlen"; fi
+        schreib "$id" "" fehler "$(kurz "$out")"
+      fi ;;
+    mail-an)
+      # Eigener Mailserver (compose.mail.yml); Zertifikat von Caddy bzw. certbot, sonst selbst erzeugt (mailkonfig/ssl)
+      schreib "$id" "" laeuft ""
+      [ -n "$dom" ] || { schreib "$id" "" fehler "Name des Mailservers fehlt"; return 1; }
+      for d in compose.mail.yml compose.mail-caddy.yml compose.mail-le.yml; do holen "$d" || { schreib "$id" "" fehler "$d liess sich nicht laden"; return 1; }; datei_an aus "$d"; done
+      env_setzen RC_MAIL_HOST "$dom"; env_setzen RC_MAIL_POSTMASTER "postmaster@${dom#*.}"
+      if [ "$schalter" = an ]; then env_setzen RC_MAIL_CLAMAV 1; else env_setzen RC_MAIL_CLAMAV 0; fi
+      datei_an an compose.mail.yml
+      case "$zert" in
+        caddy) if docker compose exec -T caddy test -f "/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/$dom/$dom.crt" 2>/dev/null; then datei_an an compose.mail-caddy.yml; else zert=datei; fi ;;
+        le) if [ -f "/etc/letsencrypt/live/$dom/fullchain.pem" ]; then datei_an an compose.mail-le.yml; else zert=datei; fi ;;
+        *) zert=datei ;;
+      esac
+      # Konfig-Ordner gehoert der App (Nutzer 1000): sie schreibt Konten, Aliase und DKIM, der Mailserver liest nur.
+      # Ohne das legt docker-mailserver das Volume als root an und startet mangels Konten nicht.
+      if out=$(docker compose pull --ignore-pull-failures mail 2>&1 && docker compose run --rm --no-deps -u root --entrypoint chown app 1000:1000 /mailkonfig /maildaten 2>&1 && docker compose up -d mail app 2>&1); then schreib "$id" "" fertig "$zert"; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
+    mail-aus)
+      schreib "$id" "" laeuft ""
+      docker compose stop mail >/dev/null 2>&1; docker compose rm -f mail >/dev/null 2>&1
+      for d in compose.mail.yml compose.mail-caddy.yml compose.mail-le.yml; do datei_an aus "$d"; done
+      if out=$(docker compose up -d app 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
+    mail-ordner-weg)
+      # gespeicherte Mails eines geloeschten Postfachs — Adresse streng pruefen (kein „..“, kein „/“)
+      local lok="${adr%@*}" mdom="${adr#*@}"
+      if [[ "$lok" =~ ^[a-z0-9][a-z0-9._+-]*$ ]] && [[ "$mdom" =~ ^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$ ]] && [[ "$lok" != *..* ]] && [[ "$mdom" != *..* ]]; then
+        if out=$(docker compose exec -T mail rm -rf -- "/var/mail/$mdom/$lok" 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi
+      else schreib "$id" "" fehler "ungueltige Adresse"; fi ;;
     caddy-neu)
       schreib "$id" "" laeuft ""
       if out=$(docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
@@ -399,7 +462,7 @@ SKRIPT
     chmod 644 /etc/cron.d/redclub-update; ausloeser="cron"
   fi
   [ -n "$ausloeser" ] || { DIENST_GRUND="$(s "Weder systemd noch cron laufen auf diesem Server – ohne einen davon kann der Knopf im Panel nichts ausloesen." "Neither systemd nor cron is running on this server – without one the panel button cannot trigger anything.")"; return 1; }
-  printf '%s\naktionen=update tunnel website domain hosting php sftp caddy zert anfragen\nstand=3\n' "$PWD" > "$daten/.updater"; chmod 644 "$daten/.updater"
+  printf '%s\naktionen=update tunnel website domain hosting php sftp caddy zert anfragen phpzusatz phpdbfern mail\nstand=4\n' "$PWD" > "$daten/.updater"; chmod 644 "$daten/.updater"
   say "==> Update-Dienst eingerichtet ($ausloeser; Panel → Version unten links → „Jetzt aktualisieren“)" "==> Update service set up ($ausloeser; panel → version at the bottom left → “Update now”)"
 }
 

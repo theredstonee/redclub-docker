@@ -1,20 +1,24 @@
 {
-  "version": "1.4.1",
+  "version": "2.0.0",
   "datum": "2026-10-27",
   "hinweise": {
     "de": [
-      "Schneller: Klicks im Panel warten nicht mehr bis zu drei Sekunden, wenn Hosting eingeschaltet ist",
-      "Neu: Ladeleiste oben beim Seitenwechsel und bei jeder Aktion",
-      "Neu: Hosting, Abstimmungen, Inventar, Shop, Ausweis und Auswertungen blenden wie der Rest des Panels sanft ein, auch beim Wechsel der Reiter",
-      "Neu: Keine sichtbaren Scrollleisten mehr im Panel und auf der Vereins-Website",
-      "Besser: Kann der Update-Dienst SFTP oder den PHP-Wechsel noch nicht, zeigt das Panel den Grund und den Befehl zum Nachrüsten"
+      "Neu: PHP 8.2 bis 8.5 je Website wählbar, HTTPS und HSTS je Seite, Weiterleitungen 301/302",
+      "Neu: 13 Apps mit einem Klick (WordPress, Joomla, Nextcloud, Drupal, MODX, Grav, OpenCart, Flarum, phpBB, MediaWiki, BookStack, Lychee, Piwigo)",
+      "Neu: Umzug bestehender Websites per Archiv, All-in-One-WP-Migration oder direkt vom alten Server",
+      "Neu: Dateimanager mit Kopieren, Verschieben, Rechten und Archiven; Aufgaben-Assistent; Speicher- und Traffic-Übersicht; Datenbank-Fernzugriff",
+      "Neu: Backups mit restic — verschlüsselt auf SFTP, S3, WebDAV/Nextcloud, FTP(S) oder Dropbox",
+      "Neu: eigener Mailserver mit Postfächern, Aliasen, Verteilern aus den Gruppen, Spam- und Virenfilter, DNS-Assistent und SMTP für Apps",
+      "Neu: Webmail im Panel — auch für Postfächer bei anderen Anbietern"
     ],
     "en": [
-      "Faster: clicks in the panel no longer wait up to three seconds when hosting is enabled",
-      "New: loading bar at the top on page changes and for every action",
-      "New: hosting, votes, inventory, shop, membership card and reports now fade in like the rest of the panel, also when switching tabs",
-      "New: no visible scrollbars in the panel and on the club website",
-      "Better: if the update service cannot switch SFTP or PHP yet, the panel shows why and the command to upgrade it"
+      "New: PHP 8.2 to 8.5 per website, HTTPS and HSTS per site, 301/302 redirects",
+      "New: 13 one-click apps (WordPress, Joomla, Nextcloud, Drupal, MODX, Grav, OpenCart, Flarum, phpBB, MediaWiki, BookStack, Lychee, Piwigo)",
+      "New: migrate existing websites via archive, All-in-One WP Migration or straight from the old server",
+      "New: file manager with copy, move, permissions and archives; cron assistant; storage and traffic overview; database remote access",
+      "New: restic backups — encrypted to SFTP, S3, WebDAV/Nextcloud, FTP(S) or Dropbox",
+      "New: own mail server with mailboxes, aliases, mailing lists from groups, spam and virus filter, DNS assistant and SMTP for apps",
+      "New: webmail in the panel — also for mailboxes at other providers"
     ]
   }
 }

@@ -21,9 +21,13 @@ services:
       RC_PHP_VERSION: ${RC_PHP_VERSION:-8.3}
     networks: [default, hosting]
 
-  web:
+  # Standard-PHP-Version (RC_PHP_VERSION) — bedient alle Seiten ohne eigene Versionswahl
+  web: &web
     image: ghcr.io/theredstonee/redclub-php:${RC_PHP_VERSION:-8.3}
     restart: unless-stopped
+    environment:
+      RC_STANDARD: "1"
+      RC_PHP_TAG: ${RC_PHP_VERSION:-8.3}
     volumes:
       - www:/www
       - hostkonfig:/konfig:ro
@@ -34,6 +38,29 @@ services:
       phpdb:
         condition: service_healthy
     stop_grace_period: 10s
+
+  # Weitere PHP-Versionen je Seite (2.0): laufen nur, wenn eine Seite sie nutzt — der Update-Dienst schaltet das
+  # Profil php82 … php85 ein oder aus (Panel: Seite → Einstellungen → PHP-Version)
+  web82:
+    <<: *web
+    image: ghcr.io/theredstonee/redclub-php:8.2
+    environment: { RC_STANDARD: "0", RC_PHP_TAG: "8.2" }
+    profiles: [php82]
+  web83:
+    <<: *web
+    image: ghcr.io/theredstonee/redclub-php:8.3
+    environment: { RC_STANDARD: "0", RC_PHP_TAG: "8.3" }
+    profiles: [php83]
+  web84:
+    <<: *web
+    image: ghcr.io/theredstonee/redclub-php:8.4
+    environment: { RC_STANDARD: "0", RC_PHP_TAG: "8.4" }
+    profiles: [php84]
+  web85:
+    <<: *web
+    image: ghcr.io/theredstonee/redclub-php:8.5
+    environment: { RC_STANDARD: "0", RC_PHP_TAG: "8.5" }
+    profiles: [php85]
 
   phpdb:
     image: mariadb:11.4

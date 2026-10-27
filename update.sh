@@ -13,7 +13,7 @@ set -uo pipefail
 exec </dev/null
 # RC_QUELLE nur fuer Tests (eigener Dateiserver statt GitHub)
 QUELLE="${RC_QUELLE:-https://raw.githubusercontent.com/theredstonee/redclub-docker/main}"
-DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.hosting.yml compose.sftp.yml Caddyfile install.sh update.sh .env.example README.md version.json"
+DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.hosting.yml compose.sftp.yml compose.phpdb.yml compose.mail.yml compose.mail-caddy.yml compose.mail-le.yml Caddyfile install.sh update.sh .env.example README.md version.json"
 DIR="${RC_DIR:-}"; STATUS=""
 while [ $# -gt 0 ]; do
   case "$1" in

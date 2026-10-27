@@ -1,0 +1,9 @@
+# RedClub Hosting — Fernzugriff auf die MariaDB der Websites (nur mit compose.hosting.yml).
+# Wird im Panel eingeschaltet (Hosting → Datenbanken → Fernzugriff). Wer sich verbinden darf, legt das Panel je
+# Datenbank fest (Benutzer@Adresse) — ohne Freigabe kommt von aussen niemand hinein, auch mit Passwort nicht.
+# Nur IPv4 (0.0.0.0): so behaelt MariaDB die echte Absender-Adresse (bei IPv6 stuende dort die Adresse von Docker).
+# Port per RC_PHPDB_FERN_PORT in der .env aenderbar; die Firewall des Servers muss ihn ebenfalls freigeben.
+services:
+  phpdb:
+    ports:
+      - "0.0.0.0:${RC_PHPDB_FERN_PORT:-3306}:3306"
