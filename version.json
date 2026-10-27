@@ -1,24 +1,20 @@
 {
-  "version": "1.4.0",
+  "version": "1.4.1",
   "datum": "2026-10-27",
   "hinweise": {
     "de": [
-      "Neu: Hosting wie bei Plesk/KeyHelp — eigene Websites mit PHP 8.2/8.3/8.4, WordPress, Joomla und Nextcloud mit einem Klick, MariaDB-Datenbanken mit Adminer, Dateimanager, SFTP, Cronjobs, Verzeichnisschutz, Weiterleitungen, Sicherungen und Statistik je Domain",
-      "Neu: Zertifikate im Überblick — automatisch, eigenes Zertifikat oder Cloudflare Origin hochladen, Nachricht vor dem Ablauf",
-      "Neu: Modul-Katalog und Erweiterungen (ZIP oder Link, abgeschottet), Abstimmungen und digitale Mitgliederversammlung, Inventar, Verleih und Räume, Shop, digitaler Mitgliederausweis mit Einlass-Scanner",
-      "Neu: Website-Baukasten mit Code-Seiten, eigenen ZIP-Websites, Weiterleitungen auf eigene Server, mehr Design-Optionen und vier Vorlagen (Sport, Coding, Musik, Feuerwehr)",
-      "Neu: Auswertungen für Verein, Finanzen und Website, Monatsbericht per Mail und als PDF/CSV",
-      "Neu: Löschschutz — Papierkorb für 30 Tage, Rückgängig für 10 Sekunden, große Löschungen nur mit eingetipptem Namen",
-      "Behoben: Eigene Domain für die Website ließ sich hinter Cloudflare oder einem Tunnel nicht einrichten; „Erneut einrichten“, www-/Hauptdomain und Fehlermeldungen funktionieren jetzt"
+      "Schneller: Klicks im Panel warten nicht mehr bis zu drei Sekunden, wenn Hosting eingeschaltet ist",
+      "Neu: Ladeleiste oben beim Seitenwechsel und bei jeder Aktion",
+      "Neu: Hosting, Abstimmungen, Inventar, Shop, Ausweis und Auswertungen blenden wie der Rest des Panels sanft ein, auch beim Wechsel der Reiter",
+      "Neu: Keine sichtbaren Scrollleisten mehr im Panel und auf der Vereins-Website",
+      "Besser: Kann der Update-Dienst SFTP oder den PHP-Wechsel noch nicht, zeigt das Panel den Grund und den Befehl zum Nachrüsten"
     ],
     "en": [
-      "New: hosting like Plesk/KeyHelp — your own websites with PHP 8.2/8.3/8.4, one-click WordPress, Joomla and Nextcloud, MariaDB databases with Adminer, file manager, SFTP, cron jobs, password protection, redirects, backups and statistics per domain",
-      "New: certificate overview — automatic, upload your own or a Cloudflare Origin certificate, notice before expiry",
-      "New: module catalogue and extensions (ZIP or link, sandboxed), votes and digital general meetings, inventory, lending and rooms, shop, digital membership card with entry scanner",
-      "New: website builder with code pages, your own ZIP websites, forwarding to your own servers, more design options and four templates (sports, coding, music, fire brigade)",
-      "New: reports for club, finances and website, monthly report by mail and as PDF/CSV",
-      "New: delete protection — trash for 30 days, undo for 10 seconds, large deletions only after typing the name",
-      "Fixed: the custom website domain could not be set up behind Cloudflare or a tunnel; “Set up again”, www/apex domain and error messages work now"
+      "Faster: clicks in the panel no longer wait up to three seconds when hosting is enabled",
+      "New: loading bar at the top on page changes and for every action",
+      "New: hosting, votes, inventory, shop, membership card and reports now fade in like the rest of the panel, also when switching tabs",
+      "New: no visible scrollbars in the panel and on the club website",
+      "Better: if the update service cannot switch SFTP or PHP yet, the panel shows why and the command to upgrade it"
     ]
   }
 }
