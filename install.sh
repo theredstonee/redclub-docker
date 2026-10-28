@@ -148,7 +148,7 @@ if [ -n "$WEG" ]; then
   fi
   # Unraid: Dienst + Zeitplan auf dem USB-Stick
   if [ -d /boot/config/plugins/redclub ]; then
-    rm -rf /boot/config/plugins/redclub /usr/local/bin/redclub-update
+    rm -rf /boot/config/plugins/redclub /boot/config/plugins/dynamix/redclub-update.cron /usr/local/bin/redclub-update
     [ -x /usr/local/sbin/update_cron ] && /usr/local/sbin/update_cron >/dev/null 2>&1
   fi
   stempel=$(date +%Y%m%d-%H%M%S); neu_laden=""
@@ -489,24 +489,23 @@ SKRIPT
   fi
   # Unraid: kein systemd, /etc und /usr/local liegen im Arbeitsspeicher (nach dem Neustart weg), und cron liest
   # /etc/cron.d als Crontabs je Benutzer (Datei „root“, ohne Benutzerfeld) — eine eigene Datei dort laeuft nie.
-  # Darum: Dienst + Zeitplan auf den USB-Stick, update_cron baut daraus die root-Crontab (auch nach jedem Start).
+  # update_cron baut die root-Crontab aus /boot/config/plugins/dynamix/*.cron (+ Ordner installierter Plugins mit .plg)
+  # — bei jedem Start und jeder Zeitplan-Aenderung. Darum: Dienst auf den USB-Stick, Zeitplan nach dynamix/.
   if [ -z "$ausloeser" ] && [ -f /etc/unraid-version ] && [ -d /boot/config ]; then
-    mkdir -p /boot/config/plugins/redclub
+    mkdir -p /boot/config/plugins/redclub /boot/config/plugins/dynamix
     cp -f /usr/local/bin/redclub-update /boot/config/plugins/redclub/redclub-update
-    printf '%s\n' "# RedClub: Auftraege aus dem Panel (angelegt von install.sh)" "* * * * * bash /boot/config/plugins/redclub/redclub-update >/dev/null 2>&1" "" > /boot/config/plugins/redclub/redclub.cron
-    rm -f /etc/cron.d/redclub-update
     local zeile="* * * * * bash /boot/config/plugins/redclub/redclub-update >/dev/null 2>&1"
-    # steht der Eintrag in einer der Crontabs, die Unraid-cron liest?
-    rc_cron_drin() { { cat /etc/cron.d/root 2>/dev/null; crontab -l 2>/dev/null; crontab -l -c /etc/cron.d 2>/dev/null; } | grep -q "plugins/redclub/redclub-update"; }
-    # 1. Unraid-Weg: update_cron sammelt /boot/config/plugins/*/*.cron (so auch nach jedem Neustart)
-    [ -x /usr/local/sbin/update_cron ] && /usr/local/sbin/update_cron >/dev/null 2>&1
-    # 2. direkt in die root-Crontab unter /etc/cron.d und cron neu laden lassen
+    printf '%s\n' "# RedClub: Auftraege aus dem Panel (angelegt von install.sh)" "$zeile" "" > /boot/config/plugins/dynamix/redclub-update.cron
+    rm -f /etc/cron.d/redclub-update /boot/config/plugins/redclub/redclub.cron
+    # steht der Eintrag in der Crontab, die Unraid-cron liest? (ohne Pipe: install.sh laeuft mit pipefail)
+    rc_cron_drin() { local alle; alle="$(cat /etc/cron.d/root 2>/dev/null || true)"; case "$alle" in *plugins/redclub/redclub-update*) return 0 ;; esac; return 1; }
+    # 1. Unraid-Weg
+    if [ -x /usr/local/sbin/update_cron ]; then /usr/local/sbin/update_cron >/dev/null 2>&1 || true; fi
+    # 2. update_cron fehlt oder liest dynamix/ nicht: direkt in die root-Crontab und cron neu laden lassen
     if ! rc_cron_drin && [ -d /etc/cron.d ]; then
-      { cat /etc/cron.d/root 2>/dev/null; echo "$zeile"; } > /tmp/redclub-cron.$$ && cat /tmp/redclub-cron.$$ > /etc/cron.d/root
+      { cat /etc/cron.d/root 2>/dev/null || true; echo "$zeile"; } > /tmp/redclub-cron.$$ && cat /tmp/redclub-cron.$$ > /etc/cron.d/root
       rm -f /tmp/redclub-cron.$$; crontab /etc/cron.d/root -c /etc/cron.d >/dev/null 2>&1 || true
     fi
-    # 3. klassisch ueber crontab -
-    if ! rc_cron_drin; then { crontab -l 2>/dev/null; echo "$zeile"; } | crontab - >/dev/null 2>&1 || true; fi
     if rc_cron_drin; then ausloeser="cron (Unraid)"
     else
       DIENST_GRUND="$(s "Unraid: der Zeitplan liess sich nicht eintragen" "Unraid: the schedule could not be added") (Unraid $(cat /etc/unraid-version 2>/dev/null | tr -dc '0-9.' | head -c 12), update_cron: $([ -x /usr/local/sbin/update_cron ] && echo ja || echo nein), /etc/cron.d: $(ls /etc/cron.d 2>/dev/null | tr '\n' ' '), crond: $(pgrep -x crond >/dev/null 2>&1 && echo laeuft || echo aus))."
