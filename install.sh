@@ -217,12 +217,17 @@ if command -v flock >/dev/null 2>&1; then exec 9>/run/redclub-update.lock 2>/dev
 find "$DATEN/.anfragen" -mindepth 1 -maxdepth 1 ! -name '*.json' -mmin +2 -delete 2>/dev/null
 # Hat systemd die Ueberwachung schon abgeschaltet (zu viele Starts), wieder einschalten
 if command -v systemctl >/dev/null 2>&1 && systemctl is-failed -q redclub-update.path 2>/dev/null; then systemctl reset-failed redclub-update.path redclub-update.service 2>/dev/null; systemctl start redclub-update.path 2>/dev/null; fi
-# Docker-Befehle duerfen nicht ewig haengen (Image-Download ohne Netz o. Ae.): nach 20 Minuten abbrechen
-docker() { if command -v timeout >/dev/null 2>&1; then timeout 1200 docker "$@"; else command docker "$@"; fi; }
+# Docker-Befehle duerfen nicht ewig haengen (Image-Download ohne Netz o. Ae.): nach 20 Minuten abbrechen.
+# Laeuft ein Auftrag (LOG gesetzt), geht die Ausgabe zusaetzlich live ins Protokoll .status/<id>.log — das Panel zeigt es an.
+LOG=""
+_docker() { if command -v timeout >/dev/null 2>&1; then timeout 1200 docker "$@"; else command docker "$@"; fi; }
+docker() { if [ -n "$LOG" ]; then _docker "$@" 2>&1 | tee -a "$LOG"; return "${PIPESTATUS[0]}"; fi; _docker "$@"; }
+notiz() { [ -n "$LOG" ] && printf '==> %s\n' "$1" >> "$LOG"; return 0; }
 
 feld() { sed -n "s#.*\"$1\":\"\\([$2]*\\)\".*#\\1#p" "$3" | head -1; }
 schreib() { # schreib <id> <alte Sammeldatei> <status> <meldung>
   local z m; z=$(date -Is); m=$(printf '%s' "$4" | tr '\n"\\' '   ' | cut -c1-600)
+  case "$3" in fertig) notiz "Fertig${m:+ ($m)}" ;; fehler) notiz "Fehler: $m" ;; esac
   [ -n "$1" ] && { printf '{"id":"%s","status":"%s","zeit":"%s","meldung":"%s"}\n' "$1" "$3" "$z" "$m" > "$DATEN/.status/$1.json"; chmod 644 "$DATEN/.status/$1.json"; }
   [ -n "$2" ] && { printf '{"status":"%s","zeit":"%s","meldung":"%s"}\n' "$3" "$z" "$m" > "$DATEN/$2"; chmod 644 "$DATEN/$2"; }
   return 0
@@ -340,6 +345,8 @@ bearbeiten() { # bearbeiten <anfrage-datei>
   # Ohne Aktion gilt „update“ nur fuer die Datei alter Apps — sonst ist der Auftrag kaputt
   if [ -z "$aktion" ] && [ "$(basename "$f")" != "0-alt.json" ]; then rm -f "$f"; schreib "$id" "" fehler "Auftrag ohne gueltige Aktion"; return 1; fi
   rm -f "$f"
+  # Live-Protokoll dieses Auftrags (die App liest es mit, solange er laeuft)
+  LOG=""; if [ -n "$id" ]; then LOG="$DATEN/.status/$id.log"; : > "$LOG"; chmod 644 "$LOG"; notiz "$(date '+%H:%M:%S') Auftrag ${aktion:-update} gestartet"; fi
   cd "$DIR" || { schreib "$id" .update-status fehler "Ordner $DIR fehlt"; return 1; }
   case "${aktion:-update}" in
     tunnel-an)
@@ -359,7 +366,8 @@ bearbeiten() { # bearbeiten <anfrage-datei>
       [ -n "$(env_lesen PHPDB_ROOT_PASSWORD)" ] || env_setzen PHPDB_ROOT_PASSWORD "$(geheim)"
       [ -n "$(env_lesen RC_PHP_VERSION)" ] || env_setzen RC_PHP_VERSION "${php:-8.3}"
       datei_an an compose.hosting.yml
-      if out=$(docker compose pull --ignore-pull-failures web phpdb 2>&1 && docker compose up -d web phpdb app 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
+      notiz "Images fuer PHP und MariaDB laden (beim ersten Mal ein paar Minuten)"
+      if out=$(docker compose pull --ignore-pull-failures web phpdb 2>&1 && notiz "Container starten, MariaDB richtet sich ein" && docker compose up -d web phpdb app 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
     hosting-aus)
       schreib "$id" "" laeuft ""
       docker compose stop web web82 web83 web84 web85 phpdb >/dev/null 2>&1; docker compose rm -f web web82 web83 web84 web85 phpdb >/dev/null 2>&1
@@ -487,10 +495,23 @@ SKRIPT
     cp -f /usr/local/bin/redclub-update /boot/config/plugins/redclub/redclub-update
     printf '%s\n' "# RedClub: Auftraege aus dem Panel (angelegt von install.sh)" "* * * * * bash /boot/config/plugins/redclub/redclub-update >/dev/null 2>&1" "" > /boot/config/plugins/redclub/redclub.cron
     rm -f /etc/cron.d/redclub-update
-    if [ -x /usr/local/sbin/update_cron ]; then /usr/local/sbin/update_cron >/dev/null 2>&1
-    else grep -q redclub-update /etc/cron.d/root 2>/dev/null || cat /boot/config/plugins/redclub/redclub.cron >> /etc/cron.d/root; crontab /etc/cron.d/root -c /etc/cron.d >/dev/null 2>&1; fi
-    if grep -q "plugins/redclub/redclub-update" /etc/cron.d/root 2>/dev/null; then ausloeser="cron (Unraid)"
-    else DIENST_GRUND="$(s "Unraid: der Zeitplan liess sich nicht in /etc/cron.d/root eintragen." "Unraid: the schedule could not be added to /etc/cron.d/root.")"; return 1; fi
+    local zeile="* * * * * bash /boot/config/plugins/redclub/redclub-update >/dev/null 2>&1"
+    # steht der Eintrag in einer der Crontabs, die Unraid-cron liest?
+    rc_cron_drin() { { cat /etc/cron.d/root 2>/dev/null; crontab -l 2>/dev/null; crontab -l -c /etc/cron.d 2>/dev/null; } | grep -q "plugins/redclub/redclub-update"; }
+    # 1. Unraid-Weg: update_cron sammelt /boot/config/plugins/*/*.cron (so auch nach jedem Neustart)
+    [ -x /usr/local/sbin/update_cron ] && /usr/local/sbin/update_cron >/dev/null 2>&1
+    # 2. direkt in die root-Crontab unter /etc/cron.d und cron neu laden lassen
+    if ! rc_cron_drin && [ -d /etc/cron.d ]; then
+      { cat /etc/cron.d/root 2>/dev/null; echo "$zeile"; } > /tmp/redclub-cron.$$ && cat /tmp/redclub-cron.$$ > /etc/cron.d/root
+      rm -f /tmp/redclub-cron.$$; crontab /etc/cron.d/root -c /etc/cron.d >/dev/null 2>&1 || true
+    fi
+    # 3. klassisch ueber crontab -
+    if ! rc_cron_drin; then { crontab -l 2>/dev/null; echo "$zeile"; } | crontab - >/dev/null 2>&1 || true; fi
+    if rc_cron_drin; then ausloeser="cron (Unraid)"
+    else
+      DIENST_GRUND="$(s "Unraid: der Zeitplan liess sich nicht eintragen" "Unraid: the schedule could not be added") (Unraid $(cat /etc/unraid-version 2>/dev/null | tr -dc '0-9.' | head -c 12), update_cron: $([ -x /usr/local/sbin/update_cron ] && echo ja || echo nein), /etc/cron.d: $(ls /etc/cron.d 2>/dev/null | tr '\n' ' '), crond: $(pgrep -x crond >/dev/null 2>&1 && echo laeuft || echo aus))."
+      return 1
+    fi
   fi
   # Ohne systemd (z. B. Container-Server, Alpine): cron schaut jede Minute nach einer Anfrage
   if [ -z "$ausloeser" ] && [ -d /etc/cron.d ] && { pgrep -x cron >/dev/null 2>&1 || pgrep -x crond >/dev/null 2>&1; }; then

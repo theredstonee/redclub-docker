@@ -43,12 +43,16 @@ status() { # status laeuft|fertig|fehler "Meldung" — nur mit --status (Panel)
     printf '{"id":"%s","status":"%s","zeit":"%s","meldung":"%s"}\n' "$RC_STATUS_ID" "$1" "$(date -Is)" "$(kurz "$2")" > "$(dirname "$STATUS")/.status/$RC_STATUS_ID.json" && chmod 644 "$(dirname "$STATUS")/.status/$RC_STATUS_ID.json"
   fi
 }
-schritt() { echo "${R}${B}${Z_SCHRITT}${N} ${B}$(s "$1" "$2")${N}"; }
-info() { echo "  ${D}${Z_V}${N} $(s "$1" "$2")"; }
-abbruch() { echo "${R}${B}${Z_FEHLER} $(s "$1" "$2")${N}" >&2; status fehler "$(s "$1" "$2")"; exit 1; }
+# Vom Update-Dienst gestartet: Live-Protokoll fuer das Panel (.status/<id>.log neben der Status-Datei)
+LOG=""
+if [ -n "$STATUS" ] && [ -n "${RC_STATUS_ID:-}" ] && [ -d "$(dirname "$STATUS")/.status" ]; then LOG="$(dirname "$STATUS")/.status/$RC_STATUS_ID.log"; touch "$LOG" && chmod 644 "$LOG"; fi
+protokoll() { [ -n "$LOG" ] && printf '%s\n' "$1" | sed 's/\x1b\[[0-9;]*m//g' >> "$LOG"; return 0; }
+schritt() { echo "${R}${B}${Z_SCHRITT}${N} ${B}$(s "$1" "$2")${N}"; protokoll "==> $(s "$1" "$2")"; }
+info() { echo "  ${D}${Z_V}${N} $(s "$1" "$2")"; protokoll "    $(s "$1" "$2")"; }
+abbruch() { echo "${R}${B}${Z_FEHLER} $(s "$1" "$2")${N}" >&2; protokoll "Fehler: $(s "$1" "$2")"; status fehler "$(s "$1" "$2")"; exit 1; }
 # Im Terminal sieht man Docker zu, im Dienst bleibt es still (die letzten Zeilen landen bei einem Fehler im Panel)
 AUSGABE=""
-lauf() { if [ -z "$STATUS" ]; then "$@"; else AUSGABE=$("$@" 2>&1); fi; }
+lauf() { if [ -z "$STATUS" ]; then "$@"; elif [ -n "$LOG" ]; then AUSGABE=$("$@" 2>&1 | tee -a "$LOG"; exit "${PIPESTATUS[0]}"); else AUSGABE=$("$@" 2>&1); fi; }
 
 [ "$(id -u)" -eq 0 ] || abbruch "Bitte mit sudo starten: curl -fsSL $QUELLE/update.sh | sudo bash" "Please run with sudo: curl -fsSL $QUELLE/update.sh | sudo bash"
 
@@ -160,6 +164,7 @@ for i in $(seq 1 90); do
     unhealthy|exited|dead) break ;;
     running) [ "$i" -ge 15 ] && break ;;   # Image ohne Gesundheitspruefung: 30 s durchgelaufen reicht
   esac
+  [ $((i % 5)) -eq 0 ] && protokoll "    Selbsttest: $((i * 2)) s, Zustand ${zustand:-startet} …"
   sleep 2
 done
 if [ "$zustand" = "healthy" ] || [ "$zustand" = "running" ]; then
