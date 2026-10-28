@@ -1,24 +1,22 @@
 {
-  "version": "2.0.0",
-  "datum": "2026-10-27",
+  "version": "2.1.0",
+  "datum": "2026-10-28",
   "hinweise": {
     "de": [
-      "Neu: PHP 8.2 bis 8.5 je Website wählbar, HTTPS und HSTS je Seite, Weiterleitungen 301/302",
-      "Neu: 13 Apps mit einem Klick (WordPress, Joomla, Nextcloud, Drupal, MODX, Grav, OpenCart, Flarum, phpBB, MediaWiki, BookStack, Lychee, Piwigo)",
-      "Neu: Umzug bestehender Websites per Archiv, All-in-One-WP-Migration oder direkt vom alten Server",
-      "Neu: Dateimanager mit Kopieren, Verschieben, Rechten und Archiven; Aufgaben-Assistent; Speicher- und Traffic-Übersicht; Datenbank-Fernzugriff",
-      "Neu: Backups mit restic — verschlüsselt auf SFTP, S3, WebDAV/Nextcloud, FTP(S) oder Dropbox",
-      "Neu: eigener Mailserver mit Postfächern, Aliasen, Verteilern aus den Gruppen, Spam- und Virenfilter, DNS-Assistent und SMTP für Apps",
-      "Neu: Webmail im Panel — auch für Postfächer bei anderen Anbietern"
+      "Neu: Webmail-Portal unter /webmail und auf einer eigenen Adresse (z. B. webmail.verein.de) — Anmeldung direkt mit Postfach und Passwort, ohne RedClub-Konto",
+      "Neu: Entwürfe werden beim Schreiben automatisch gespeichert; das Fenster schließt nicht mehr durch einen Klick daneben",
+      "Webmail einfacher: Kontowechsel, Absender und Signatur, Mehrfachauswahl, Tastenkürzel",
+      "Behoben: „Hosting einschalten“ konnte endlos warten — der Auftrag läuft weiter, wenn man die Seite verlässt, und erscheint beim Zurückkommen wieder; holt der Server ihn nicht ab, steht nach 3 Minuten, was zu tun ist",
+      "Update-Dienst robuster: sieht zusätzlich jede Minute nach Aufträgen und schaltet sich nach einer Störung selbst wieder ein",
+      "Behoben: Schrift auf einigen Knöpfen (Shop, Profil, Einstellungen) war falsch gefärbt oder zu klein"
     ],
     "en": [
-      "New: PHP 8.2 to 8.5 per website, HTTPS and HSTS per site, 301/302 redirects",
-      "New: 13 one-click apps (WordPress, Joomla, Nextcloud, Drupal, MODX, Grav, OpenCart, Flarum, phpBB, MediaWiki, BookStack, Lychee, Piwigo)",
-      "New: migrate existing websites via archive, All-in-One WP Migration or straight from the old server",
-      "New: file manager with copy, move, permissions and archives; cron assistant; storage and traffic overview; database remote access",
-      "New: restic backups — encrypted to SFTP, S3, WebDAV/Nextcloud, FTP(S) or Dropbox",
-      "New: own mail server with mailboxes, aliases, mailing lists from groups, spam and virus filter, DNS assistant and SMTP for apps",
-      "New: webmail in the panel — also for mailboxes at other providers"
+      "New: webmail portal at /webmail and on its own address (e.g. webmail.club.org) — sign in with mailbox and password, no RedClub account needed",
+      "New: drafts are saved automatically while writing; the window no longer closes when clicking outside",
+      "Simpler webmail: account switcher, sender and signature, multi-select, keyboard shortcuts",
+      "Fixed: “Turn on hosting” could wait forever — the job keeps running when you leave the page and shows again when you come back; if the server does not pick it up, you see what to do after 3 minutes",
+      "Sturdier update service: also checks for jobs every minute and switches itself back on after a fault",
+      "Fixed: text on some buttons (shop, profile, settings) had the wrong colour or size"
     ]
   }
 }

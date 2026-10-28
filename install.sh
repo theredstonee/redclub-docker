@@ -201,6 +201,15 @@ umask 022
 mkdir -p "$DATEN/.anfragen" "$DATEN/.status"
 # die App (uid 1000) muss Auftraege ablegen und Status lesen koennen
 chown 1000:1000 "$DATEN/.anfragen" "$DATEN/.status" 2>/dev/null || true
+# Immer nur ein Lauf (systemd-Ausloeser + Zeitgeber/cron koennen sich ueberschneiden): der zweite wartet
+if command -v flock >/dev/null 2>&1; then exec 9>/run/redclub-update.lock 2>/dev/null || exec 9>/tmp/redclub-update.lock; flock -w 3600 9 || exit 0; fi
+# Uebrig gebliebene Teil-Dateien (App beim Schreiben abgestuerzt) halten den Ordner sonst ewig „nicht leer“ —
+# systemd startet den Dienst dann im Kreis, bis er die Ueberwachung abschaltet und kein Auftrag mehr ankommt
+find "$DATEN/.anfragen" -mindepth 1 -maxdepth 1 ! -name '*.json' -mmin +2 -delete 2>/dev/null
+# Hat systemd die Ueberwachung schon abgeschaltet (zu viele Starts), wieder einschalten
+if command -v systemctl >/dev/null 2>&1 && systemctl is-failed -q redclub-update.path 2>/dev/null; then systemctl reset-failed redclub-update.path redclub-update.service 2>/dev/null; systemctl start redclub-update.path 2>/dev/null; fi
+# Docker-Befehle duerfen nicht ewig haengen (Image-Download ohne Netz o. Ae.): nach 20 Minuten abbrechen
+docker() { if command -v timeout >/dev/null 2>&1; then timeout 1200 docker "$@"; else command docker "$@"; fi; }
 
 feld() { sed -n "s#.*\"$1\":\"\\([$2]*\\)\".*#\\1#p" "$3" | head -1; }
 schreib() { # schreib <id> <alte Sammeldatei> <status> <meldung>
@@ -440,7 +449,9 @@ bearbeiten() { # bearbeiten <anfrage-datei>
 
 # Alte Apps legen genau eine Datei ab, neue einen Ordner voller Auftraege — beides der Reihe nach abarbeiten
 [ -f "$DATEN/.update-anfrage" ] && mv -f "$DATEN/.update-anfrage" "$DATEN/.anfragen/0-alt.json"
-for f in $(ls -1 "$DATEN/.anfragen/"*.json 2>/dev/null | sort); do bearbeiten "$f"; done
+for f in $(ls -1 "$DATEN/.anfragen/"*.json 2>/dev/null | sort); do [ -f "$f" ] && bearbeiten "$f"; done
+# Liegt nur noch eine frische Teil-Datei da (App schreibt gerade), nicht sofort im Kreis neu starten
+[ -n "$(ls -A "$DATEN/.anfragen" 2>/dev/null)" ] && sleep 5
 # Status-Dateien aelter als 7 Tage weg
 find "$DATEN/.status" -name '*.json' -mtime +7 -delete 2>/dev/null
 exit 0
@@ -453,8 +464,11 @@ SKRIPT
   if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
     mkdir -p "$daten/.anfragen" "$daten/.status"; chown 1000:1000 "$daten/.anfragen" "$daten/.status" 2>/dev/null || true
     printf '%s\n' "[Unit]" "Description=RedClub: Auftrag aus dem Panel" "[Path]" "PathExists=$daten/.update-anfrage" "DirectoryNotEmpty=$daten/.anfragen" "[Install]" "WantedBy=multi-user.target" > /etc/systemd/system/redclub-update.path
-    printf '%s\n' "[Unit]" "Description=RedClub aktualisieren" "[Service]" "Type=oneshot" "ExecStart=/usr/local/bin/redclub-update" > /etc/systemd/system/redclub-update.service
-    if systemctl daemon-reload && systemctl enable --now redclub-update.path >/dev/null 2>&1; then ausloeser="systemd"; rm -f /etc/cron.d/redclub-update; fi
+    # StartLimitIntervalSec=0: viele Auftraege kurz hintereinander duerfen die Ueberwachung nie abschalten
+    printf '%s\n' "[Unit]" "Description=RedClub aktualisieren" "StartLimitIntervalSec=0" "ConditionDirectoryNotEmpty=|$daten/.anfragen" "ConditionPathExists=|$daten/.update-anfrage" "[Service]" "Type=oneshot" "ExecStart=/usr/local/bin/redclub-update" > /etc/systemd/system/redclub-update.service
+    # Rueckfallebene: jede Minute nachsehen, falls die Pfad-Ueberwachung doch einmal ausfaellt
+    printf '%s\n' "[Unit]" "Description=RedClub: Auftraege nachsehen" "[Timer]" "OnBootSec=1min" "OnUnitInactiveSec=1min" "AccuracySec=10s" "[Install]" "WantedBy=timers.target" > /etc/systemd/system/redclub-update.timer
+    if systemctl daemon-reload && systemctl enable --now redclub-update.path >/dev/null 2>&1; then ausloeser="systemd"; rm -f /etc/cron.d/redclub-update; systemctl reset-failed redclub-update.path redclub-update.service >/dev/null 2>&1; systemctl restart redclub-update.path >/dev/null 2>&1; systemctl enable --now redclub-update.timer >/dev/null 2>&1; fi
   fi
   # Ohne systemd (z. B. Container-Server, Alpine): cron schaut jede Minute nach einer Anfrage
   if [ -z "$ausloeser" ] && [ -d /etc/cron.d ] && { pgrep -x cron >/dev/null 2>&1 || pgrep -x crond >/dev/null 2>&1; }; then
