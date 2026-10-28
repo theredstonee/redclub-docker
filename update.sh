@@ -53,9 +53,10 @@ lauf() { if [ -z "$STATUS" ]; then "$@"; else AUSGABE=$("$@" 2>&1); fi; }
 [ "$(id -u)" -eq 0 ] || abbruch "Bitte mit sudo starten: curl -fsSL $QUELLE/update.sh | sudo bash" "Please run with sudo: curl -fsSL $QUELLE/update.sh | sudo bash"
 
 # Installationsordner finden: --dir → RC_DIR → Ordner aus dem Update-Dienst → /opt/redclub → aktueller Ordner
-if [ -z "$DIR" ] && [ -f /usr/local/bin/redclub-update ]; then
-  DIR=$(sed -n 's/^DIR="\([^"]*\)".*/\1/p' /usr/local/bin/redclub-update | head -1)
-fi
+# (install.sh schreibt DIR=%q — mit oder ohne Anfuehrungszeichen; Unraid: Kopie auf dem USB-Stick)
+for d in /usr/local/bin/redclub-update /boot/config/plugins/redclub/redclub-update; do
+  [ -z "$DIR" ] && [ -f "$d" ] && DIR=$(bash -c 'eval "$(grep -m1 "^DIR=" "$1")"; printf %s "$DIR"' _ "$d" 2>/dev/null)
+done
 for k in "$DIR" /opt/redclub "$PWD"; do
   if [ -n "$k" ] && [ -f "$k/docker-compose.yml" ] && [ -f "$k/.env" ]; then DIR="$k"; break; fi
 done

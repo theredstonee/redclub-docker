@@ -142,9 +142,14 @@ if [ -n "$WEG" ]; then
   # Update-Dienst
   rm -f /etc/cron.d/redclub-update
   if [ -f /etc/systemd/system/redclub-update.path ]; then
-    systemctl disable --now redclub-update.path >/dev/null 2>&1 || true
-    rm -f /etc/systemd/system/redclub-update.path /etc/systemd/system/redclub-update.service /usr/local/bin/redclub-update
+    systemctl disable --now redclub-update.path redclub-update.timer >/dev/null 2>&1 || true
+    rm -f /etc/systemd/system/redclub-update.path /etc/systemd/system/redclub-update.service /etc/systemd/system/redclub-update.timer /usr/local/bin/redclub-update
     systemctl daemon-reload || true
+  fi
+  # Unraid: Dienst + Zeitplan auf dem USB-Stick
+  if [ -d /boot/config/plugins/redclub ]; then
+    rm -rf /boot/config/plugins/redclub /usr/local/bin/redclub-update
+    [ -x /usr/local/sbin/update_cron ] && /usr/local/sbin/update_cron >/dev/null 2>&1
   fi
   stempel=$(date +%Y%m%d-%H%M%S); neu_laden=""
   for datei in /etc/nginx/sites-enabled/redclub.conf /etc/nginx/sites-enabled/redclub-setup.conf /etc/nginx/sites-available/redclub.conf /etc/nginx/sites-available/redclub-setup.conf \
@@ -198,9 +203,13 @@ updater_einrichten() {
 # Es gibt nur die festen Aktionen unten — der Dienst fuehrt nie Befehle aus der Anfrage aus.
 set -uo pipefail
 umask 022
+# cron (z. B. Unraid) startet mit sehr kurzem PATH
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
 mkdir -p "$DATEN/.anfragen" "$DATEN/.status"
 # die App (uid 1000) muss Auftraege ablegen und Status lesen koennen
 chown 1000:1000 "$DATEN/.anfragen" "$DATEN/.status" 2>/dev/null || true
+# Nichts zu tun (cron/Zeitgeber schauen jede Minute nach): sofort fertig, ohne auf die Sperre zu warten
+[ -n "$(ls -A "$DATEN/.anfragen" 2>/dev/null)" ] || [ -f "$DATEN/.update-anfrage" ] || exit 0
 # Immer nur ein Lauf (systemd-Ausloeser + Zeitgeber/cron koennen sich ueberschneiden): der zweite wartet
 if command -v flock >/dev/null 2>&1; then exec 9>/run/redclub-update.lock 2>/dev/null || exec 9>/tmp/redclub-update.lock; flock -w 3600 9 || exit 0; fi
 # Uebrig gebliebene Teil-Dateien (App beim Schreiben abgestuerzt) halten den Ordner sonst ewig „nicht leer“ —
@@ -469,6 +478,19 @@ SKRIPT
     # Rueckfallebene: jede Minute nachsehen, falls die Pfad-Ueberwachung doch einmal ausfaellt
     printf '%s\n' "[Unit]" "Description=RedClub: Auftraege nachsehen" "[Timer]" "OnBootSec=1min" "OnUnitInactiveSec=1min" "AccuracySec=10s" "[Install]" "WantedBy=timers.target" > /etc/systemd/system/redclub-update.timer
     if systemctl daemon-reload && systemctl enable --now redclub-update.path >/dev/null 2>&1; then ausloeser="systemd"; rm -f /etc/cron.d/redclub-update; systemctl reset-failed redclub-update.path redclub-update.service >/dev/null 2>&1; systemctl restart redclub-update.path >/dev/null 2>&1; systemctl enable --now redclub-update.timer >/dev/null 2>&1; fi
+  fi
+  # Unraid: kein systemd, /etc und /usr/local liegen im Arbeitsspeicher (nach dem Neustart weg), und cron liest
+  # /etc/cron.d als Crontabs je Benutzer (Datei „root“, ohne Benutzerfeld) — eine eigene Datei dort laeuft nie.
+  # Darum: Dienst + Zeitplan auf den USB-Stick, update_cron baut daraus die root-Crontab (auch nach jedem Start).
+  if [ -z "$ausloeser" ] && [ -f /etc/unraid-version ] && [ -d /boot/config ]; then
+    mkdir -p /boot/config/plugins/redclub
+    cp -f /usr/local/bin/redclub-update /boot/config/plugins/redclub/redclub-update
+    printf '%s\n' "# RedClub: Auftraege aus dem Panel (angelegt von install.sh)" "* * * * * bash /boot/config/plugins/redclub/redclub-update >/dev/null 2>&1" "" > /boot/config/plugins/redclub/redclub.cron
+    rm -f /etc/cron.d/redclub-update
+    if [ -x /usr/local/sbin/update_cron ]; then /usr/local/sbin/update_cron >/dev/null 2>&1
+    else grep -q redclub-update /etc/cron.d/root 2>/dev/null || cat /boot/config/plugins/redclub/redclub.cron >> /etc/cron.d/root; crontab /etc/cron.d/root -c /etc/cron.d >/dev/null 2>&1; fi
+    if grep -q "plugins/redclub/redclub-update" /etc/cron.d/root 2>/dev/null; then ausloeser="cron (Unraid)"
+    else DIENST_GRUND="$(s "Unraid: der Zeitplan liess sich nicht in /etc/cron.d/root eintragen." "Unraid: the schedule could not be added to /etc/cron.d/root.")"; return 1; fi
   fi
   # Ohne systemd (z. B. Container-Server, Alpine): cron schaut jede Minute nach einer Anfrage
   if [ -z "$ausloeser" ] && [ -d /etc/cron.d ] && { pgrep -x cron >/dev/null 2>&1 || pgrep -x crond >/dev/null 2>&1; }; then
