@@ -1,24 +1,20 @@
 {
-  "version": "2.2.0",
+  "version": "2.3.0",
   "datum": "2026-10-29",
   "hinweise": {
     "de": [
-      "Neuer Website-Editor: Texte direkt auf der Seite anklicken und tippen – mit Werkzeugleiste für fett, kursiv, Links und Listen, „+“ zwischen den Abschnitten und Ziehen zum Sortieren",
-      "Entwürfe und Versionen: Änderungen werden automatisch als Entwurf gespeichert und gehen erst mit „Veröffentlichen“ online – oder zu einer geplanten Zeit; jede Fassung lässt sich vergleichen und zurückholen, ein Vorschau-Link zeigt den Entwurf 7 Tage lang",
-      "Neue Blöcke: Spalten mit eigenen Blöcken darin, Überschrift, Knöpfe, Liste, Abstand, Preistabelle, Reiter, Social Media und eine Karte, die erst nach Klick lädt",
-      "Muster: fertige Abschnitte zum Einfügen und eigene Muster – synchrone Muster ändern sich auf allen Seiten mit",
-      "Mediathek mit Ordnern, Suche, Beschreibung für Blinde und Google und „verwendet auf“; Menü-Editor mit Untermenüs, Links und Knopf; Fußbereich mit eigenen Spalten und Social Media",
-      "Seiten: Unterseiten, Duplizieren, Ziehen zum Sortieren, Startvorschläge; je Seite eigener Google-Titel, Teilen-Bild, „nicht indexieren“ und Weiterleitung bei geänderter Adresse",
-      "Bewegung: Stil (ruhig, lebendig, kräftig), sanftes Scrollen in Stufen, Tempo und für jeden Block ein eigener Effekt mit Verzögerung; drei neue Vorlagen (Magazin, Frisch, Sport)"
+      "Neu: Nginx Proxy Manager per API – läuft ein NPM vor RedClub (auch auf einem anderen Server), trägt RedClub jede Hosting-Seite samt Subdomains, die Website-Domain, den Mailserver und das Webmail selbst als Proxy Host ein und räumt beim Löschen wieder auf",
+      "Zertifikate über den NPM: Let’s Encrypt, Let’s Encrypt per Cloudflare-DNS (auch ohne offenen Port 80) oder ein vorhandenes Zertifikat wie ein Wildcard; passende vorhandene Zertifikate werden auf Wunsch automatisch genutzt",
+      "Anmeldung am NPM mit E-Mail und Passwort oder mit API-Token – RedClub erneuert den Token selbst, alles verschlüsselt gespeichert",
+      "Übersicht unter Hosting → Proxy Manager und Verbindungen: alle Domains mit Stand, Zertifikat und Ablauf; vorhandene Einträge im NPM lassen sich übernehmen, fremde bleiben unangetastet",
+      "Vertraute IP des NPM-Servers: Sperren und Limits sehen die echte Besucher-IP"
     ],
     "en": [
-      "New website editor: click texts right on the page and type – with a toolbar for bold, italic, links and lists, a “+” between sections and drag to reorder",
-      "Drafts and versions: changes are saved automatically as a draft and only go live with “Publish” – or at a scheduled time; every version can be compared and restored, a preview link shows the draft for 7 days",
-      "New blocks: columns with their own blocks, heading, buttons, list, spacer, pricing table, tabs, social media and a map that only loads after a click",
-      "Patterns: ready-made sections to insert and your own patterns – synced patterns change on every page",
-      "Media library with folders, search, descriptions for screen readers and Google and “used on”; menu editor with sub-menus, links and a button; footer with own columns and social media",
-      "Pages: sub-pages, duplicate, drag to reorder, starter layouts; per page an own Google title, share image, “do not index” and a redirect when the address changes",
-      "Motion: style (calm, lively, bold), smooth scrolling in steps, speed and an own effect with delay for every block; three new templates (Editorial, Fresh, Sport)"
+      "New: Nginx Proxy Manager via API – if a NPM runs in front of RedClub (also on another server), RedClub adds every hosting site with subdomains, the website domain, the mail server and webmail as proxy hosts itself and cleans up when deleting",
+      "Certificates via NPM: Let’s Encrypt, Let’s Encrypt via Cloudflare DNS (even without port 80) or an existing certificate such as a wildcard; matching existing certificates can be used automatically",
+      "Sign in to NPM with e-mail and password or an API token – RedClub renews the token itself, everything stored encrypted",
+      "Overview under Hosting → Proxy Manager and Connections: all domains with status, certificate and expiry; existing NPM entries can be taken over, others stay untouched",
+      "Trusted IP of the NPM server: blocks and limits see the real visitor IP"
     ]
   }
 }
