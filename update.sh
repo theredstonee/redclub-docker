@@ -213,6 +213,22 @@ fi
 # nur die fuenf neuesten Sicherungen behalten
 ls -1d .sicherung/*/ 2>/dev/null | sort -r | tail -n +6 | xargs -r rm -rf
 
+# Passt das Datenbank-Passwort der .env nicht mehr zur Datenbank (.env neu angelegt, das Daten-Volume ist aber das
+# alte — etwa nach einem Unraid-Neustart oder einer zweiten Installation), kommt die App nie an ihre Daten (502).
+# Im Datenbank-Container geht der lokale Socket ohne Passwort: darueber das Passwort der .env setzen, Daten bleiben.
+# Geprueft wird ueber die Netz-Adresse des Containers (wie die App) — 127.0.0.1 ist dort ohne Passwort erlaubt.
+# Rueckgabe: 0 = passt, 2 = angeglichen (App neu gestartet), 1 = liess sich nicht angleichen
+db_passwort_angleichen() {
+  local i
+  [ -n "$(docker compose ps -q db 2>/dev/null)" ] || return 0
+  for i in $(seq 1 30); do docker compose exec -T db pg_isready -q >/dev/null 2>&1 && break; sleep 1; done
+  docker compose exec -T db sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$(hostname -i 2>/dev/null | cut -d" " -f1)" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select 1"' >/dev/null 2>&1 && return 0
+  printf '%s\n' "ALTER USER CURRENT_USER PASSWORD :'pw';" | docker compose exec -T db sh -c 'psql -q -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -v pw="$POSTGRES_PASSWORD"' >/dev/null 2>&1 || return 1
+  docker compose exec -T db sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$(hostname -i 2>/dev/null | cut -d" " -f1)" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select 1"' >/dev/null 2>&1 || return 1
+  docker compose restart app >/dev/null 2>&1 || true
+  return 2
+}
+
 # 2. Neues Image laden und neu starten (alle Dienste der .env: App, Datenbank, Caddy, Tunnel …)
 schritt "Neues Image laden und neu starten" "Pulling the new image and restarting"
 status laeuft "$(s "Image wird geladen" "Pulling the image")"
@@ -225,6 +241,13 @@ else
   warte "Container werden neu gestartet" "Restarting the containers"
   lauf docker compose up -d || abbruch "Neustart fehlgeschlagen: $(kurz "$AUSGABE")" "Restart failed: $(kurz "$AUSGABE")"
 fi
+warte "Datenbank-Zugang wird geprüft" "Checking database access"
+db_rc=0; db_passwort_angleichen || db_rc=$?
+case "$db_rc" in
+  2) info "${Y}Das Datenbank-Passwort passte nicht zur .env — angeglichen (Daten bleiben), App neu gestartet.${N}" "${Y}The database password did not match .env — fixed (data kept), app restarted.${N}" ;;
+  1) info "${Y}Das Datenbank-Passwort passt nicht zur .env und liess sich nicht angleichen.${N}" "${Y}The database password does not match .env and could not be fixed.${N}" ;;
+  *) warte_ende ok ;;
+esac
 
 # 3. Selbsttest: meldet sich die App gesund? Sonst zurueck auf die vorherige Fassung (Image + Dateien)
 schritt "Selbsttest" "Self-test"
@@ -256,6 +279,7 @@ else
   elif [ -n "$bild_alt" ] && [ -n "$bild_name" ]; then docker tag "$bild_alt" "$bild_name" >/dev/null 2>&1 || true; fi
   warte "Vorherige Fassung wird wieder gestartet" "Starting the previous version again"
   lauf docker compose up -d || true
+  db_passwort_angleichen >/dev/null 2>&1 || true
   warte_ende ok; cp -f "$AUSG.app" "$AUSG" 2>/dev/null || true
   sd=""; se=""; if [ -f "$sich/datenbank.sql.gz" ]; then sd=" Sicherung der Datenbank: $DIR/$sich/datenbank.sql.gz —"; se=" Database backup: $DIR/$sich/datenbank.sql.gz —"; fi
   abbruch "Update zurueckgenommen: die vorherige Fassung wurde wieder gestartet.$sd Protokoll: docker compose logs app" \
