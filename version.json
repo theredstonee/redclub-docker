@@ -1,22 +1,20 @@
 {
-  "version": "2.1.0",
-  "datum": "2026-10-28",
+  "version": "2.1.1",
+  "datum": "2026-10-29",
   "hinweise": {
     "de": [
-      "Neu: Webmail-Portal unter /webmail und auf einer eigenen Adresse (z. B. webmail.verein.de) — Anmeldung direkt mit Postfach und Passwort, ohne RedClub-Konto",
-      "Neu: Entwürfe werden beim Schreiben automatisch gespeichert; das Fenster schließt nicht mehr durch einen Klick daneben",
-      "Webmail einfacher: Kontowechsel, Absender und Signatur, Mehrfachauswahl, Tastenkürzel",
-      "Behoben: „Hosting einschalten“ konnte endlos warten — der Auftrag läuft weiter, wenn man die Seite verlässt, und erscheint beim Zurückkommen wieder; holt der Server ihn nicht ab, steht nach 3 Minuten, was zu tun ist",
-      "Update-Dienst robuster: sieht zusätzlich jede Minute nach Aufträgen und schaltet sich nach einer Störung selbst wieder ein",
-      "Behoben: Schrift auf einigen Knöpfen (Shop, Profil, Einstellungen) war falsch gefärbt oder zu klein"
+      "Neu: Live-Protokoll vom Server — beim Hosting einschalten, PHP-Wechsel, SFTP, Mailserver und beim Update siehst du live, was der Server gerade macht",
+      "Update im Panel: holt der Server den Auftrag nicht ab oder schlägt etwas fehl, bleibt der Fehler samt Protokoll im Fenster stehen, mit dem Befehl zum Beheben",
+      "update.sh zeigt Schritte mit Nummer, einen Spinner mit laufenden Sekunden und bei Fehlern die letzten Zeilen der Ausgabe in Rot",
+      "Behoben: Der Rücksprung auf die vorherige Fassung nach einem fehlgeschlagenen Selbsttest klappt jetzt auch mit neueren Docker-Versionen (containerd-Speicher)",
+      "Unraid: Der Update-Dienst wird über den Unraid-Zeitplan eingerichtet und bleibt nach einem Neustart erhalten"
     ],
     "en": [
-      "New: webmail portal at /webmail and on its own address (e.g. webmail.club.org) — sign in with mailbox and password, no RedClub account needed",
-      "New: drafts are saved automatically while writing; the window no longer closes when clicking outside",
-      "Simpler webmail: account switcher, sender and signature, multi-select, keyboard shortcuts",
-      "Fixed: “Turn on hosting” could wait forever — the job keeps running when you leave the page and shows again when you come back; if the server does not pick it up, you see what to do after 3 minutes",
-      "Sturdier update service: also checks for jobs every minute and switches itself back on after a fault",
-      "Fixed: text on some buttons (shop, profile, settings) had the wrong colour or size"
+      "New: live log from the server — when turning on hosting, switching PHP, SFTP, the mail server and during updates you see live what the server is doing",
+      "Update in the panel: if the server does not pick up the job or something fails, the error stays in the window with the log and the command to fix it",
+      "update.sh shows numbered steps, a spinner with running seconds and, on errors, the last lines of output in red",
+      "Fixed: rolling back to the previous version after a failed self-test now also works with newer Docker versions (containerd store)",
+      "Unraid: the update service is set up via the Unraid scheduler and survives a reboot"
     ]
   }
 }
