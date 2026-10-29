@@ -1,20 +1,16 @@
 {
-  "version": "2.3.0",
+  "version": "2.3.1",
   "datum": "2026-10-29",
   "hinweise": {
     "de": [
-      "Neu: Nginx Proxy Manager per API – läuft ein NPM vor RedClub (auch auf einem anderen Server), trägt RedClub jede Hosting-Seite samt Subdomains, die Website-Domain, den Mailserver und das Webmail selbst als Proxy Host ein und räumt beim Löschen wieder auf",
-      "Zertifikate über den NPM: Let’s Encrypt, Let’s Encrypt per Cloudflare-DNS (auch ohne offenen Port 80) oder ein vorhandenes Zertifikat wie ein Wildcard; passende vorhandene Zertifikate werden auf Wunsch automatisch genutzt",
-      "Anmeldung am NPM mit E-Mail und Passwort oder mit API-Token – RedClub erneuert den Token selbst, alles verschlüsselt gespeichert",
-      "Übersicht unter Hosting → Proxy Manager und Verbindungen: alle Domains mit Stand, Zertifikat und Ablauf; vorhandene Einträge im NPM lassen sich übernehmen, fremde bleiben unangetastet",
-      "Vertraute IP des NPM-Servers: Sperren und Limits sehen die echte Besucher-IP"
+      "Behoben: Im Website-Editor (Reiter „Seite“ und „Sichtbarkeit“) waren die Schalter verschoben und die Beschriftungen gequetscht",
+      "Website auf dem Handy: Das Menü fährt animiert auf, das Symbol wird zum X, Menüpunkte erscheinen nacheinander; ein langer Vereinsname rutscht nicht mehr unter den Menü-Knopf",
+      "Titelbild: Der Scroll-Hinweis unten lässt sich ausschalten und erscheint auf dem Handy nicht mehr über den Knöpfen"
     ],
     "en": [
-      "New: Nginx Proxy Manager via API – if a NPM runs in front of RedClub (also on another server), RedClub adds every hosting site with subdomains, the website domain, the mail server and webmail as proxy hosts itself and cleans up when deleting",
-      "Certificates via NPM: Let’s Encrypt, Let’s Encrypt via Cloudflare DNS (even without port 80) or an existing certificate such as a wildcard; matching existing certificates can be used automatically",
-      "Sign in to NPM with e-mail and password or an API token – RedClub renews the token itself, everything stored encrypted",
-      "Overview under Hosting → Proxy Manager and Connections: all domains with status, certificate and expiry; existing NPM entries can be taken over, others stay untouched",
-      "Trusted IP of the NPM server: blocks and limits see the real visitor IP"
+      "Fixed: in the website editor (“Page” and “Visibility” tabs) the switches were misplaced and the labels squeezed",
+      "Website on phones: the menu slides open with an animation, the icon turns into an X, items appear one after another; a long club name no longer slides under the menu button",
+      "Hero: the scroll hint at the bottom can be switched off and no longer covers the buttons on phones"
     ]
   }
 }
