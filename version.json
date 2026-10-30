@@ -1,16 +1,26 @@
 {
-  "version": "2.3.1",
-  "datum": "2026-10-29",
+  "version": "2.4.0",
+  "datum": "2026-10-30",
   "hinweise": {
     "de": [
-      "Behoben: Im Website-Editor (Reiter „Seite“ und „Sichtbarkeit“) waren die Schalter verschoben und die Beschriftungen gequetscht",
-      "Website auf dem Handy: Das Menü fährt animiert auf, das Symbol wird zum X, Menüpunkte erscheinen nacheinander; ein langer Vereinsname rutscht nicht mehr unter den Menü-Knopf",
-      "Titelbild: Der Scroll-Hinweis unten lässt sich ausschalten und erscheint auf dem Handy nicht mehr über den Knöpfen"
+      "Website-Editor: Jeder Block hat jetzt einen Reiter „Design“ – Farben für Hintergrund, Überschrift, Text und Knöpfe, Ausrichtung, Textgröße, Zeilenbreite, Schrift, Abstände per Schieberegler, Ecken, Schatten, Rahmen und Mindesthöhe",
+      "Hintergründe: eigene Farbe, Verlauf mit zwei Farben, Punktmuster oder Video (MP4/WebM), Fotos mit Abdunkeln und Fokuspunkt",
+      "Design-Variablen: eigene Farben einmal festlegen und in allen Blöcken wählen – änderst du sie, ändern sich alle Blöcke mit",
+      "Platzhalter in Texten: {{verein}}, {{mitglieder}}, {{naechster_termin}}, {{jahr}} und eigene Werte – bleiben auf der Website von selbst aktuell",
+      "Einfacher: Varianten statt vieler Einzelblöcke (Bild & Text links, rechts, oben oder Text auf dem Bild; Karten als Raster, Liste oder Karussell), seltene Einstellungen unter „Mehr“, Vorschaubilder beim Einfügen",
+      "Direkt am Bild: Klick aufs Bild in der Vorschau zeigt eine kleine Leiste zum Tauschen, Fokus setzen, Verlinken und Beschreiben",
+      "Neu: Knopf-Stil (gefüllt, umrandet, nur Text), Links in neuem Tab, Bilder mit Link",
+      "Anmeldung bei RedDrop und anderen Apps über RedClub: eigene, ruhige Seite mit Vereinsname statt der Navigation des Mitgliederbereichs"
     ],
     "en": [
-      "Fixed: in the website editor (“Page” and “Visibility” tabs) the switches were misplaced and the labels squeezed",
-      "Website on phones: the menu slides open with an animation, the icon turns into an X, items appear one after another; a long club name no longer slides under the menu button",
-      "Hero: the scroll hint at the bottom can be switched off and no longer covers the buttons on phones"
+      "Website editor: every block now has a “Design” tab – colours for background, heading, text and buttons, alignment, text size, line width, font, spacing sliders, corners, shadow, border and minimum height",
+      "Backgrounds: custom colour, two-colour gradient, dot pattern or video (MP4/WebM), photos with darkening and focus point",
+      "Design variables: define your own colours once and pick them in every block – change them and every block follows",
+      "Placeholders in texts: {{verein}}, {{mitglieder}}, {{naechster_termin}}, {{jahr}} and your own values – stay up to date on the website",
+      "Simpler: variants instead of many single blocks (image & text left, right, on top or text over the image; cards as grid, list or carousel), rare settings under “More”, preview images when inserting",
+      "Right on the image: clicking an image in the preview shows a small bar to replace it, set the focus, link it and describe it",
+      "New: button style (filled, outline, text only), links in a new tab, images with links",
+      "Signing in to RedDrop and other apps via RedClub: a calm page of its own with the club name instead of the member area navigation"
     ]
   }
 }
