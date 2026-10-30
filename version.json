@@ -1,26 +1,32 @@
 {
-  "version": "2.4.0",
+  "version": "2.5.0",
   "datum": "2026-10-30",
   "hinweise": {
     "de": [
-      "Website-Editor: Jeder Block hat jetzt einen Reiter „Design“ – Farben für Hintergrund, Überschrift, Text und Knöpfe, Ausrichtung, Textgröße, Zeilenbreite, Schrift, Abstände per Schieberegler, Ecken, Schatten, Rahmen und Mindesthöhe",
-      "Hintergründe: eigene Farbe, Verlauf mit zwei Farben, Punktmuster oder Video (MP4/WebM), Fotos mit Abdunkeln und Fokuspunkt",
-      "Design-Variablen: eigene Farben einmal festlegen und in allen Blöcken wählen – änderst du sie, ändern sich alle Blöcke mit",
-      "Platzhalter in Texten: {{verein}}, {{mitglieder}}, {{naechster_termin}}, {{jahr}} und eigene Werte – bleiben auf der Website von selbst aktuell",
-      "Einfacher: Varianten statt vieler Einzelblöcke (Bild & Text links, rechts, oben oder Text auf dem Bild; Karten als Raster, Liste oder Karussell), seltene Einstellungen unter „Mehr“, Vorschaubilder beim Einfügen",
-      "Direkt am Bild: Klick aufs Bild in der Vorschau zeigt eine kleine Leiste zum Tauschen, Fokus setzen, Verlinken und Beschreiben",
-      "Neu: Knopf-Stil (gefüllt, umrandet, nur Text), Links in neuem Tab, Bilder mit Link",
-      "Anmeldung bei RedDrop und anderen Apps über RedClub: eigene, ruhige Seite mit Vereinsname statt der Navigation des Mitgliederbereichs"
+      "Events & Tickets: Veranstaltungen mit eigener Seite, Ticketarten (z. B. Mitglied, Gast, Kind), Bezahlung per Stripe oder Rechnung, Sitzplan, Gutscheincodes, Warteliste, PDF-Tickets mit QR-Code und Einlass-Scan im Browser – auch für Mitgliedsausweise",
+      "Konten aus Mitgliedern: Panel-Zugang mit einem Klick oder für viele auf einmal anlegen, Einladung per E-Mail, Anmeldung je Konto und Mitgliederbereich je Mitglied sperrbar",
+      "Webmail: gemeinsame Postfächer (z. B. info@) für ausgewählte Konten oder alle, Einrichtungs-Assistent für fremde Postfächer, Ordner per Rechtsklick anlegen, umbenennen und löschen, Nachrichten auf Ordner ziehen, Schnellfilter ungelesen, markiert und mit Anhang",
+      "Lager & Kasse: Bestand je Variante, ausverkaufte Varianten auf der Website gesperrt, Wareneingang mit Buchung, Inventur, Mindestbestand mit Hinweis zum Nachbestellen und eine Kasse für den Verkauf vor Ort mit Tagesabschluss",
+      "Abos: wiederkehrende Rechnungen monatlich bis jährlich – automatisch ausgestellt, verschickt und gemahnt; mit TRS License gibt es Lizenzschlüssel, die sich mit jeder Zahlung verlängern, auch für Shop-Artikel",
+      "TRS Termine einbinden: Buchungsseite als Website-Block „Terminbuchung“, gebuchte Termine erscheinen im Vereinskalender",
+      "Partner & Sponsoren: Logo, Stufe, Laufzeit, Betrag und Ansprechpartner an einer Stelle – auf der Website als Block und eigene Seite /partner",
+      "Ausgeschaltete Module sind jetzt wirklich aus: auch ihre Hintergrund-Aufgaben und Website-Blöcke ruhen",
+      "DNS-Assistent: erkennt den Anbieter der Domain, verlinkt direkt zu dessen DNS-Einstellungen und zeigt den nötigen Eintrag zum Kopieren",
+      "Dateimanager: Suche nach Dateinamen und im Inhalt",
+      "Stempeluhr im Mitgliederbereich, Führerscheinklassen bei Qualifikationen (inkl. Vorlage „Führerscheinkontrolle“), Übersicht aller Zeitpläne im Protokoll, aufgeräumte Backup-Seite"
     ],
     "en": [
-      "Website editor: every block now has a “Design” tab – colours for background, heading, text and buttons, alignment, text size, line width, font, spacing sliders, corners, shadow, border and minimum height",
-      "Backgrounds: custom colour, two-colour gradient, dot pattern or video (MP4/WebM), photos with darkening and focus point",
-      "Design variables: define your own colours once and pick them in every block – change them and every block follows",
-      "Placeholders in texts: {{verein}}, {{mitglieder}}, {{naechster_termin}}, {{jahr}} and your own values – stay up to date on the website",
-      "Simpler: variants instead of many single blocks (image & text left, right, on top or text over the image; cards as grid, list or carousel), rare settings under “More”, preview images when inserting",
-      "Right on the image: clicking an image in the preview shows a small bar to replace it, set the focus, link it and describe it",
-      "New: button style (filled, outline, text only), links in a new tab, images with links",
-      "Signing in to RedDrop and other apps via RedClub: a calm page of its own with the club name instead of the member area navigation"
+      "Events & tickets: events with their own page, ticket types (e.g. member, guest, child), payment via Stripe or invoice, seating plan, voucher codes, waiting list, PDF tickets with QR code and check-in scan in the browser – also for membership cards",
+      "Accounts from members: create panel access with one click or for many at once, invitation by e-mail, sign-in lockable per account and members area per member",
+      "Webmail: shared mailboxes (e.g. info@) for selected accounts or everyone, setup assistant for external mailboxes, create, rename and delete folders via right-click, drag messages onto folders, quick filters unread, flagged and with attachment",
+      "Stock & till: stock per variant, sold-out variants locked on the website, goods-in with booking, stocktake, minimum stock with reorder notice and a till for on-site sales with daily close",
+      "Subscriptions: recurring invoices monthly to yearly – issued, sent and dunned automatically; with TRS License you get licence keys extended with every payment, also for shop items",
+      "Embed TRS Termine: booking page as website block “Appointment booking”, booked appointments appear in the club calendar",
+      "Partners & sponsors: logo, tier, term, amount and contact in one place – on the website as a block and its own page /partner",
+      "Turned-off modules are now really off: their background tasks and website blocks rest too",
+      "DNS assistant: detects the domain’s provider, links straight to its DNS settings and shows the required record to copy",
+      "File manager: search by file name and content",
+      "Timer in the members area, driving licence classes for qualifications (incl. template “licence check”), overview of all schedules in the activity log, tidier backups page"
     ]
   }
 }
