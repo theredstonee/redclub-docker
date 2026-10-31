@@ -1,32 +1,24 @@
 {
-  "version": "2.5.0",
-  "datum": "2026-10-30",
+  "version": "2.5.1",
+  "datum": "2026-10-31",
   "hinweise": {
     "de": [
-      "Events & Tickets: Veranstaltungen mit eigener Seite, Ticketarten (z. B. Mitglied, Gast, Kind), Bezahlung per Stripe oder Rechnung, Sitzplan, Gutscheincodes, Warteliste, PDF-Tickets mit QR-Code und Einlass-Scan im Browser – auch für Mitgliedsausweise",
-      "Konten aus Mitgliedern: Panel-Zugang mit einem Klick oder für viele auf einmal anlegen, Einladung per E-Mail, Anmeldung je Konto und Mitgliederbereich je Mitglied sperrbar",
-      "Webmail: gemeinsame Postfächer (z. B. info@) für ausgewählte Konten oder alle, Einrichtungs-Assistent für fremde Postfächer, Ordner per Rechtsklick anlegen, umbenennen und löschen, Nachrichten auf Ordner ziehen, Schnellfilter ungelesen, markiert und mit Anhang",
-      "Lager & Kasse: Bestand je Variante, ausverkaufte Varianten auf der Website gesperrt, Wareneingang mit Buchung, Inventur, Mindestbestand mit Hinweis zum Nachbestellen und eine Kasse für den Verkauf vor Ort mit Tagesabschluss",
-      "Abos: wiederkehrende Rechnungen monatlich bis jährlich – automatisch ausgestellt, verschickt und gemahnt; mit TRS License gibt es Lizenzschlüssel, die sich mit jeder Zahlung verlängern, auch für Shop-Artikel",
-      "TRS Termine einbinden: Buchungsseite als Website-Block „Terminbuchung“, gebuchte Termine erscheinen im Vereinskalender",
-      "Partner & Sponsoren: Logo, Stufe, Laufzeit, Betrag und Ansprechpartner an einer Stelle – auf der Website als Block und eigene Seite /partner",
-      "Ausgeschaltete Module sind jetzt wirklich aus: auch ihre Hintergrund-Aufgaben und Website-Blöcke ruhen",
-      "DNS-Assistent: erkennt den Anbieter der Domain, verlinkt direkt zu dessen DNS-Einstellungen und zeigt den nötigen Eintrag zum Kopieren",
-      "Dateimanager: Suche nach Dateinamen und im Inhalt",
-      "Stempeluhr im Mitgliederbereich, Führerscheinklassen bei Qualifikationen (inkl. Vorlage „Führerscheinkontrolle“), Übersicht aller Zeitpläne im Protokoll, aufgeräumte Backup-Seite"
+      "Wichtige Fehlerbehebung: Nach einigen Stunden Betrieb konnte RedClub komplett hängen bleiben (Fehler 504 über Tunnel/Proxy), bis zum Neustart. Ursache waren gleichzeitig laufende Hintergrund-Aufgaben, die sich gegenseitig die Datenbank-Verbindungen blockierten — jetzt behoben.",
+      "Abos: Zeiträume, die an einem Monatsende beginnen (z. B. 31.), rutschen nicht mehr Monat für Monat nach vorne",
+      "Mediathek: Foto-Kacheln im großen Fenster werden wieder vollständig gefüllt, die Auswahl scrollt im Fenster",
+      "Website: eigene Domain lässt sich auch einrichten, wenn das Panel nur über die IP-Adresse erreichbar ist",
+      "Urkunden: klare Auswahl „Mitglied / Extern“ mit Feldern für Name und E-Mail",
+      "Webmail: Mailserver des Vereins einmal unter Verbindungen hinterlegen — danach reichen E-Mail und Passwort, auch auf der Webmail-Anmeldeseite",
+      "Spenden: „Ist schon gebucht“ verknüpft die Spende mit der vorhandenen Buchung"
     ],
     "en": [
-      "Events & tickets: events with their own page, ticket types (e.g. member, guest, child), payment via Stripe or invoice, seating plan, voucher codes, waiting list, PDF tickets with QR code and check-in scan in the browser – also for membership cards",
-      "Accounts from members: create panel access with one click or for many at once, invitation by e-mail, sign-in lockable per account and members area per member",
-      "Webmail: shared mailboxes (e.g. info@) for selected accounts or everyone, setup assistant for external mailboxes, create, rename and delete folders via right-click, drag messages onto folders, quick filters unread, flagged and with attachment",
-      "Stock & till: stock per variant, sold-out variants locked on the website, goods-in with booking, stocktake, minimum stock with reorder notice and a till for on-site sales with daily close",
-      "Subscriptions: recurring invoices monthly to yearly – issued, sent and dunned automatically; with TRS License you get licence keys extended with every payment, also for shop items",
-      "Embed TRS Termine: booking page as website block “Appointment booking”, booked appointments appear in the club calendar",
-      "Partners & sponsors: logo, tier, term, amount and contact in one place – on the website as a block and its own page /partner",
-      "Turned-off modules are now really off: their background tasks and website blocks rest too",
-      "DNS assistant: detects the domain’s provider, links straight to its DNS settings and shows the required record to copy",
-      "File manager: search by file name and content",
-      "Timer in the members area, driving licence classes for qualifications (incl. template “licence check”), overview of all schedules in the activity log, tidier backups page"
+      "Important fix: after some hours RedClub could hang completely (error 504 via tunnel/proxy) until restarted. Background tasks running at the same time blocked each other’s database connections — fixed now.",
+      "Subscriptions: periods starting at a month end (e.g. the 31st) no longer drift forward month by month",
+      "Media library: photo tiles in the large window are filled completely again, the list scrolls inside the window",
+      "Website: an own domain can be set up even if the panel is only reachable by IP address",
+      "Certificates: clear choice “member / external” with fields for name and e-mail",
+      "Webmail: store the club mail server once under Connections — then e-mail and password are enough, also on the webmail sign-in page",
+      "Donations: “already booked” links the donation to the existing booking"
     ]
   }
 }
