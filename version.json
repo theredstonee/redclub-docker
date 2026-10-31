@@ -1,12 +1,14 @@
 {
-  "version": "2.6.1",
+  "version": "2.6.2",
   "datum": "2026-10-31",
   "hinweise": {
     "de": [
-      "Wichtige Fehlerbehebung (Datenschutz): Beim Senden aus dem Webmail konnten alle Empfänger sehen, wer in Bcc stand. Ab jetzt stehen Bcc-Empfänger nur noch in der Kopie unter „Gesendet“ — bitte zeitnah aktualisieren."
+      "Einrichtung hinter eigenem Webserver: Der Assistent erkennt jetzt, wenn die Installation ohne eigenen Caddy läuft, und bietet „Eigene Domain“ dort nicht mehr an (das konnte nie funktionieren). Stattdessen richtet er nginx oder Apache samt Virtual Host, HTTPS (Let’s Encrypt) und HSTS auf Knopfdruck selbst ein — mit Live-Protokoll.",
+      "Sicherheit: Der Update-Dienst auf dem Server schreibt Status- und Protokolldateien jetzt so, dass ihm keine untergeschobene Verknüpfung aus dem RedClub-Container mehr Dateien auf dem Server überschreiben lassen kann. Bitte zeitnah aktualisieren."
     ],
     "en": [
-      "Important fix (privacy): when sending from the webmail, all recipients could see who was in Bcc. From now on Bcc recipients only appear in your copy under “Sent” — please update soon."
+      "Setup behind your own web server: the wizard now detects installations without their own Caddy and no longer offers “Own domain” there (it could never work). Instead it sets up nginx or Apache including the virtual host, HTTPS (Let’s Encrypt) and HSTS with one click — with a live log.",
+      "Security: the update service on the server now writes its status and log files so that a planted link from the RedClub container can no longer make it overwrite files on the server. Please update soon."
     ]
   }
 }

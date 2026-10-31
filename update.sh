@@ -35,17 +35,61 @@ else Z_SCHRITT=">"; Z_OK="OK"; Z_FEHLER="X"; Z_V="|"; fi
 SPR="de"
 s() { if [ "$SPR" = "de" ]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }
 kurz() { printf '%s' "$1" | tail -3 | tr '\n"\\' '   ' | cut -c1-400; }
+# Status und Protokoll liegen im Datenordner der App (gehoert dem App-Nutzer im Container, dieses Skript laeuft als
+# root): nie durch einen Pfad schreiben, unter dem ein Link liegen koennte. Gleiche Helfer wie im Update-Dienst.
+# sicher_ordner <ordner> — 0, wenn <ordner> ein echter Ordner ist und kein Link (auch nicht im letzten Glied):
+# physischer Pfad == physischer Pfad des Elternordners + Name.
+sicher_ordner() {
+  local d="${1%/}" p
+  [ -d "$d" ] && [ ! -L "$d" ] || return 1
+  p=$(cd -P "${d%/*}/" 2>/dev/null && pwd) || return 1
+  [ "$(cd -P "$d" 2>/dev/null && pwd)" = "${p%/}/${d##*/}" ]
+}
+# ablegen <pfad> — stdin als <pfad> ablegen (644), ohne je einem Link zu folgen: neue Datei mit O_EXCL (set -C)
+# im Ordner selbst (cd: ein danach vertauschter Ordner aendert nichts), dann umbenennen (folgt keinem Link).
+ablegen() {
+  local d="${1%/*}" n="${1##*/}"
+  sicher_ordner "$d" || return 1
+  ( cd -P "$d" || exit 1
+    t=".neu.$$.$RANDOM$RANDOM"
+    ( umask 022; set -C; cat > "$t" ) 2>/dev/null || exit 1
+    mv -fT "$t" "$n" 2>/dev/null || { rm -f "$n"; mv -f "$t" "$n"; } )
+}
+# log_oeffnen <pfad> <fd> — <pfad> frisch anlegen (644) und in EINEM Schritt (O_EXCL) auf Kanal <fd> oeffnen;
+# danach nur noch ueber /dev/fd/<fd> schreiben und lesen. Beispiel:  log_oeffnen "$DATEN/.update.log" 6 && LOG=/dev/fd/6
+log_oeffnen() {
+  local d="${1%/*}" n="${1##*/}" t alt="$PWD" um rc=1 c=""
+  case "$2" in [3-9]) ;; *) return 1 ;; esac
+  sicher_ordner "$d" || return 1
+  cd -P "$d" || return 1
+  t=".neu.$$.$RANDOM$RANDOM"; um=$(umask); umask 022
+  case "$-" in *C*) c=1 ;; esac
+  set -C
+  if eval "exec $2>\"\$t\"" 2>/dev/null; then rc=0; fi
+  # gleich im Anhaenge-Modus neu oeffnen — ueber den Kanal selbst (dieselbe Datei), nicht ueber den Pfad
+  if [ "$rc" = 0 ]; then eval "exec $2>>/dev/fd/$2" 2>/dev/null || true; fi
+  [ -n "$c" ] || set +C; umask "$um"
+  if [ "$rc" = 0 ]; then mv -fT "$t" "$n" 2>/dev/null || { rm -f "$n"; mv -f "$t" "$n"; }; fi
+  cd "$alt" 2>/dev/null || true
+  return "$rc"
+}
+case "${RC_STATUS_ID:-}" in *[!a-z0-9-]*) RC_STATUS_ID="" ;; esac
 status() { # status laeuft|fertig|fehler "Meldung" — nur mit --status (Panel)
   [ -n "$STATUS" ] || return 0
-  printf '{"status":"%s","zeit":"%s","meldung":"%s"}\n' "$1" "$(date -Is)" "$(kurz "$2")" > "$STATUS" && chmod 644 "$STATUS"
+  printf '{"status":"%s","zeit":"%s","meldung":"%s"}\n' "$1" "$(date -Is)" "$(kurz "$2")" | ablegen "$STATUS"
   # Update-Dienst ab Stand 3: zusaetzlich unter der Auftrags-ID (die App wartet genau auf diesen Auftrag)
   if [ -n "${RC_STATUS_ID:-}" ] && [ -d "$(dirname "$STATUS")/.status" ]; then
-    printf '{"id":"%s","status":"%s","zeit":"%s","meldung":"%s"}\n' "$RC_STATUS_ID" "$1" "$(date -Is)" "$(kurz "$2")" > "$(dirname "$STATUS")/.status/$RC_STATUS_ID.json" && chmod 644 "$(dirname "$STATUS")/.status/$RC_STATUS_ID.json"
+    printf '{"id":"%s","status":"%s","zeit":"%s","meldung":"%s"}\n' "$RC_STATUS_ID" "$1" "$(date -Is)" "$(kurz "$2")" | ablegen "$(dirname "$STATUS")/.status/$RC_STATUS_ID.json"
   fi
+  return 0
 }
-# Vom Update-Dienst gestartet: Live-Protokoll fuer das Panel (.status/<id>.log neben der Status-Datei)
+# Vom Update-Dienst gestartet: Live-Protokoll fuer das Panel (.status/<id>.log neben der Status-Datei).
+# Neuer Dienst: das Protokoll ist schon offen (Kanal RC_LOG_FD) — sonst frisch anlegen und nur ueber Kanal 6 schreiben.
 LOG=""
-if [ -n "$STATUS" ] && [ -n "${RC_STATUS_ID:-}" ] && [ -d "$(dirname "$STATUS")/.status" ]; then LOG="$(dirname "$STATUS")/.status/$RC_STATUS_ID.log"; touch "$LOG" && chmod 644 "$LOG"; fi
+if [ -n "$STATUS" ] && [ -n "${RC_STATUS_ID:-}" ] && [ -d "$(dirname "$STATUS")/.status" ]; then
+  case "${RC_LOG_FD:-}" in [3-9]) if { true >&"$RC_LOG_FD"; } 2>/dev/null; then LOG="/dev/fd/$RC_LOG_FD"; fi ;; esac
+  if [ -z "$LOG" ] && log_oeffnen "$(dirname "$STATUS")/.status/$RC_STATUS_ID.log" 6; then LOG=/dev/fd/6; fi
+fi
 protokoll() { [ -n "$LOG" ] && printf '%s\n' "$1" | sed 's/\x1b\[[0-9;]*m//g' >> "$LOG"; return 0; }
 # Im Terminal: Schritte mit Nummer und ein Spinner mit laufenden Sekunden, damit man sieht, dass etwas passiert.
 # Die Docker-Ausgabe landet in einer Datei (letzte Zeile klein neben dem Spinner); bei einem Fehler erscheinen die
