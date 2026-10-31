@@ -1,22 +1,12 @@
 {
-  "version": "2.6.0",
+  "version": "2.6.1",
   "datum": "2026-10-31",
   "hinweise": {
     "de": [
-      "Neues Modul „Lager & Freizeiten“: Lager planen wie mit eCamp — Wochenplan zum Ziehen (Picasso), Programmblöcke mit Detailplanung, Tagesverantwortliche, J+S-Auswertung für die Schweiz",
-      "Lager: Anmeldung über die Website mit Tarifen, Kontingent, Warteliste und automatischem Nachrücken, Rechnung direkt aus der Anmeldung",
-      "Lager: Material mit Inventar-Reservierung, Menüplan mit Einkaufsliste, Lagerdossier und Picasso als PDF, Handy-Ansicht „Heute“ für unterwegs",
-      "Domains: Für jede Domain (Panel, Website, Hosting-Seiten, Mailserver, Webmail) wählst du den Weg nach außen — direkt mit Caddy, über einen Webserver, den Cloudflare-Tunnel oder den Nginx Proxy Manager",
-      "Domains: Nicht eingerichtete Wege werden mit Grund angezeigt und lassen sich direkt einrichten; beim Panel prüft RedClub vor dem Umschalten, ob die neue Adresse erreichbar ist, und schaltet sonst zurück",
-      "Cloudflare-Tunnel lässt sich jetzt verbinden, ohne dass das Panel selbst darüber läuft"
+      "Wichtige Fehlerbehebung (Datenschutz): Beim Senden aus dem Webmail konnten alle Empfänger sehen, wer in Bcc stand. Ab jetzt stehen Bcc-Empfänger nur noch in der Kopie unter „Gesendet“ — bitte zeitnah aktualisieren."
     ],
     "en": [
-      "New module “Camps & trips”: plan camps like with eCamp — drag-and-drop week plan (Picasso), programme blocks with detailed planning, daily leads, J+S evaluation for Switzerland",
-      "Camps: registration via the website with rates, quota, waiting list and automatic move-up, invoice straight from the registration",
-      "Camps: material with inventory reservation, menu plan with shopping list, camp dossier and Picasso as PDF, mobile “Today” view",
-      "Domains: choose the way out for every domain (panel, website, hosting sites, mail server, webmail) — direct with Caddy, via a web server, the Cloudflare tunnel or Nginx Proxy Manager",
-      "Domains: ways that are not set up show the reason and can be set up right away; for the panel RedClub checks the new address is reachable before switching and rolls back otherwise",
-      "The Cloudflare tunnel can now be connected without moving the panel onto it"
+      "Important fix (privacy): when sending from the webmail, all recipients could see who was in Bcc. From now on Bcc recipients only appear in your copy under “Sent” — please update soon."
     ]
   }
 }
