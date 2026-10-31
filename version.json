@@ -3,10 +3,12 @@
   "datum": "2026-10-31",
   "hinweise": {
     "de": [
+      "Neu: DNS-Assistent für den Mailserver — für jeden Eintrag (MX, A, SPF, DKIM, DMARC, PTR, SRV) siehst du Soll und Ist mit Erklärung, kannst eine fertige DNS-Datei herunterladen oder die Einträge nach einer Vorschau direkt bei Cloudflare eintragen lassen. Behoben: Der A-Eintrag wurde fälschlich als falsch angezeigt, wenn sich die Server-IP seit der Einrichtung geändert hatte.",
       "Einrichtung hinter eigenem Webserver: Der Assistent erkennt jetzt, wenn die Installation ohne eigenen Caddy läuft, und bietet „Eigene Domain“ dort nicht mehr an (das konnte nie funktionieren). Stattdessen richtet er nginx oder Apache samt Virtual Host, HTTPS (Let’s Encrypt) und HSTS auf Knopfdruck selbst ein — mit Live-Protokoll.",
       "Sicherheit: Der Update-Dienst auf dem Server schreibt Status- und Protokolldateien jetzt so, dass ihm keine untergeschobene Verknüpfung aus dem RedClub-Container mehr Dateien auf dem Server überschreiben lassen kann. Bitte zeitnah aktualisieren."
     ],
     "en": [
+      "New: DNS assistant for the mail server — for every record (MX, A, SPF, DKIM, DMARC, PTR, SRV) you see expected and actual values with an explanation, can download a ready-made DNS zone file or have the records created at Cloudflare after a preview. Fixed: the A record was wrongly shown as incorrect when the server IP had changed since setup.",
       "Setup behind your own web server: the wizard now detects installations without their own Caddy and no longer offers “Own domain” there (it could never work). Instead it sets up nginx or Apache including the virtual host, HTTPS (Let’s Encrypt) and HSTS with one click — with a live log.",
       "Security: the update service on the server now writes its status and log files so that a planted link from the RedClub container can no longer make it overwrite files on the server. Please update soon."
     ]
