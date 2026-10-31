@@ -1,24 +1,22 @@
 {
-  "version": "2.5.1",
+  "version": "2.6.0",
   "datum": "2026-10-31",
   "hinweise": {
     "de": [
-      "Wichtige Fehlerbehebung: Nach einigen Stunden Betrieb konnte RedClub komplett hängen bleiben (Fehler 504 über Tunnel/Proxy), bis zum Neustart. Ursache waren gleichzeitig laufende Hintergrund-Aufgaben, die sich gegenseitig die Datenbank-Verbindungen blockierten — jetzt behoben.",
-      "Abos: Zeiträume, die an einem Monatsende beginnen (z. B. 31.), rutschen nicht mehr Monat für Monat nach vorne",
-      "Mediathek: Foto-Kacheln im großen Fenster werden wieder vollständig gefüllt, die Auswahl scrollt im Fenster",
-      "Website: eigene Domain lässt sich auch einrichten, wenn das Panel nur über die IP-Adresse erreichbar ist",
-      "Urkunden: klare Auswahl „Mitglied / Extern“ mit Feldern für Name und E-Mail",
-      "Webmail: Mailserver des Vereins einmal unter Verbindungen hinterlegen — danach reichen E-Mail und Passwort, auch auf der Webmail-Anmeldeseite",
-      "Spenden: „Ist schon gebucht“ verknüpft die Spende mit der vorhandenen Buchung"
+      "Neues Modul „Lager & Freizeiten“: Lager planen wie mit eCamp — Wochenplan zum Ziehen (Picasso), Programmblöcke mit Detailplanung, Tagesverantwortliche, J+S-Auswertung für die Schweiz",
+      "Lager: Anmeldung über die Website mit Tarifen, Kontingent, Warteliste und automatischem Nachrücken, Rechnung direkt aus der Anmeldung",
+      "Lager: Material mit Inventar-Reservierung, Menüplan mit Einkaufsliste, Lagerdossier und Picasso als PDF, Handy-Ansicht „Heute“ für unterwegs",
+      "Domains: Für jede Domain (Panel, Website, Hosting-Seiten, Mailserver, Webmail) wählst du den Weg nach außen — direkt mit Caddy, über einen Webserver, den Cloudflare-Tunnel oder den Nginx Proxy Manager",
+      "Domains: Nicht eingerichtete Wege werden mit Grund angezeigt und lassen sich direkt einrichten; beim Panel prüft RedClub vor dem Umschalten, ob die neue Adresse erreichbar ist, und schaltet sonst zurück",
+      "Cloudflare-Tunnel lässt sich jetzt verbinden, ohne dass das Panel selbst darüber läuft"
     ],
     "en": [
-      "Important fix: after some hours RedClub could hang completely (error 504 via tunnel/proxy) until restarted. Background tasks running at the same time blocked each other’s database connections — fixed now.",
-      "Subscriptions: periods starting at a month end (e.g. the 31st) no longer drift forward month by month",
-      "Media library: photo tiles in the large window are filled completely again, the list scrolls inside the window",
-      "Website: an own domain can be set up even if the panel is only reachable by IP address",
-      "Certificates: clear choice “member / external” with fields for name and e-mail",
-      "Webmail: store the club mail server once under Connections — then e-mail and password are enough, also on the webmail sign-in page",
-      "Donations: “already booked” links the donation to the existing booking"
+      "New module “Camps & trips”: plan camps like with eCamp — drag-and-drop week plan (Picasso), programme blocks with detailed planning, daily leads, J+S evaluation for Switzerland",
+      "Camps: registration via the website with rates, quota, waiting list and automatic move-up, invoice straight from the registration",
+      "Camps: material with inventory reservation, menu plan with shopping list, camp dossier and Picasso as PDF, mobile “Today” view",
+      "Domains: choose the way out for every domain (panel, website, hosting sites, mail server, webmail) — direct with Caddy, via a web server, the Cloudflare tunnel or Nginx Proxy Manager",
+      "Domains: ways that are not set up show the reason and can be set up right away; for the panel RedClub checks the new address is reachable before switching and rolls back otherwise",
+      "The Cloudflare tunnel can now be connected without moving the panel onto it"
     ]
   }
 }
