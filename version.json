@@ -1,18 +1,14 @@
 {
-  "version": "2.8.0",
+  "version": "2.8.1",
   "datum": "2026-11-01",
   "hinweise": {
     "de": [
-      "Wichtig: Der eigene Mailserver und das Webmail sind aus RedClub entfernt. Beim Update wird ein laufender Mail-Container beendet, ab dann kommen dort keine Mails mehr an. Die Postfächer bleiben als Docker-Volume erhalten. Wer Mail selbst hosten will: RedPost.",
-      "E-Mails aus RedClub (Rechnungen, Rundmails, Benachrichtigungen) gehen nur noch über den SMTP-Zugang unter Einstellungen. Wer bisher den eigenen Mailserver dafür genutzt hat, trägt dort einen neuen Zugang ein.",
-      "Neues Auswahlmenü überall: Die Listen des Browsers sind ersetzt. Es sieht in hell und dunkel gleich aus und lässt sich mit Maus und Tastatur bedienen.",
-      "Behoben: Die Einrichtung des Webservers brach ab, wenn nginx gerade nicht lief."
+      "Behoben: Ein leeres Pflichtfeld im neuen Auswahlmenü sperrte das Absenden nicht immer. Jetzt öffnet sich die Liste und das Feld wird markiert.",
+      "Aus 2.8.0: Der eigene Mailserver und das Webmail sind entfernt. Beim Update wird ein laufender Mail-Container beendet, die Postfächer bleiben als Docker-Volume erhalten. E-Mails aus RedClub gehen über den SMTP-Zugang unter Einstellungen."
     ],
     "en": [
-      "Important: the built-in mail server and webmail have been removed from RedClub. The update stops a running mail container, and it will no longer receive e-mail. Mailboxes stay in their Docker volume. To host e-mail yourself, see RedPost.",
-      "E-mails from RedClub (invoices, newsletters, notifications) now only go through the SMTP access in the settings. If you used the built-in mail server for this, enter a new access there.",
-      "New selection menu everywhere: the browser's own lists are gone. It looks the same in light and dark and works with mouse and keyboard.",
-      "Fixed: web server setup failed when nginx was not running."
+      "Fixed: an empty required field in the new selection menu did not always block submitting. The list now opens and the field is marked.",
+      "From 2.8.0: the built-in mail server and webmail are removed. The update stops a running mail container, mailboxes stay in their Docker volume. E-mails from RedClub go through the SMTP access in the settings."
     ]
   }
 }
