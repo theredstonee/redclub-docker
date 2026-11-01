@@ -1,16 +1,12 @@
 {
-  "version": "2.7.0",
+  "version": "2.7.1",
   "datum": "2026-11-01",
   "hinweise": {
     "de": [
-      "Neu: Backups direkt nach RedDrop — als Ziel einfach die RedDrop-Adresse, einen Bucket und dessen Zugangsschlüssel eintragen (RedDrop 1.6.0, „Speicher“). Verschlüsselt mit deinem Wiederherstellungs-Schlüssel, mit Zeitplan, Aufbewahrung und Wiederherstellen aus RedClub. Läuft RedDrop im selben Compose, geht es intern ohne Umweg übers Internet.",
-      "Behoben: Bei S3-Zielen wurde die Einstellung „Path-Style“ nie verwendet — selbst gehostete Speicher wie MinIO oder Garage sind jetzt im Formular per Haken nutzbar.",
-      "Sicherheit: Backup-Ziele dürfen nicht mehr auf interne Adressen des Servers zeigen (127.0.0.1, Link-Local wie 169.254.x). Wer Adresse, Bucket oder Benutzer eines Ziels ändert, muss Passwort bzw. Geheimnis neu eingeben — gespeicherte Zugangsdaten lassen sich so nicht an einen anderen Server umleiten."
+      "Behoben: PDF-Belege blieben beim Ansehen im Browser leer, direkt geöffnete Videos und PDFs der Vereins-Website ebenso."
     ],
     "en": [
-      "New: backups straight to RedDrop — as the target just enter the RedDrop address, a bucket and its access key (RedDrop 1.6.0, “Storage”). Encrypted with your recovery key, with schedules, retention and restore from RedClub. If RedDrop runs in the same Compose, traffic stays internal.",
-      "Fixed: the “path style” setting of S3 targets was never used — self-hosted storage such as MinIO or Garage now works via a checkbox in the form.",
-      "Security: backup targets can no longer point to internal addresses of the server (127.0.0.1, link-local such as 169.254.x). Changing the address, bucket or user of a target requires entering the password or secret again — stored credentials can no longer be redirected to another server."
+      "Fixed: PDF receipts stayed blank when viewed in the browser, and so did directly opened videos and PDFs on the club website."
     ]
   }
 }
