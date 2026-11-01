@@ -4,7 +4,7 @@
 
 By [TheRedStonee](https://www.theredstonee.de/) · 5 Tage kostenlos testen, danach mit Lizenz
 
-> **English:** Self-hosted club management for associations in Germany, Austria and Switzerland. Runs as a Docker package on your own server, so your members' data stays with you. Members, groups, events with sign-ups and helper shifts, newsletters, a members area (installable app with push notices), double-entry bookkeeping with DATEV export, invoices with Swiss QR-bill / GiroCode, SEPA direct debit, Stripe and bank-statement import, donation receipts, certificates, volunteer hours and coach payouts, RedDrop files and single sign-on for other apps, plus a website builder for the club homepage with membership form and contact form. Web hosting like Plesk/KeyHelp (PHP 8.2–8.5 per site, 13 one-click apps, site migration, MariaDB with remote access, SFTP, cron), an own mail server with webmail, and encrypted restic backups to SFTP, S3, WebDAV, FTP or Dropbox. Cloudflare Tunnel for servers without open ports. 5-day trial, then with a licence — without one everything stays readable and exportable. One `docker compose up`, automatic HTTPS via Let's Encrypt. German and English. Jump to [Quick start](#schnellstart).
+> **English:** Self-hosted club management for associations in Germany, Austria and Switzerland. Runs as a Docker package on your own server, so your members' data stays with you. Members, groups, events with sign-ups and helper shifts, newsletters, a members area (installable app with push notices), double-entry bookkeeping with DATEV export, invoices with Swiss QR-bill / GiroCode, SEPA direct debit, Stripe and bank-statement import, donation receipts, certificates, volunteer hours and coach payouts, RedDrop files and single sign-on for other apps, plus a website builder for the club homepage with membership form and contact form. Web hosting like Plesk/KeyHelp (PHP 8.2–8.5 per site, 13 one-click apps, site migration, MariaDB with remote access, SFTP, cron), an own mail server with webmail, and encrypted restic backups to SFTP, S3, WebDAV, FTP, Dropbox or a RedDrop bucket. Cloudflare Tunnel for servers without open ports. 5-day trial, then with a licence — without one everything stays readable and exportable. One `docker compose up`, automatic HTTPS via Let's Encrypt. German and English. Jump to [Quick start](#schnellstart).
 
 ---
 
@@ -23,7 +23,7 @@ By [TheRedStonee](https://www.theredstonee.de/) · 5 Tage kostenlos testen, dana
   Dazu Code-Seiten, eigene fertige Websites als ZIP, Weiterleitungen auf eigene Server und vier Vorlagen (Sport, Coding, Musik, Feuerwehr).
 - **Hosting wie bei Plesk/KeyHelp:** weitere Websites mit eigener Domain, **PHP 8.2 bis 8.5 je Seite wählbar**, **13 Apps mit einem Klick** (WordPress, Joomla, Nextcloud, Drupal, MODX, Grav, OpenCart, Flarum, phpBB, MediaWiki, BookStack, Lychee, Piwigo), **Umzug bestehender Websites** (ZIP/tar, All-in-One-WP-Migration, SFTP/FTP mit Datenbank), MariaDB-Datenbanken mit Adminer und Fernzugriff, Dateimanager mit Archiven und Rechten, SFTP, Cronjobs mit Assistent, HTTPS/HSTS je Seite, Speicher- und Traffic-Übersicht — [mehr dazu](#hosting).
 - **Eigener Mailserver:** Postfächer, Aliase, Weiterleitungen, Sammeladresse, **Verteiler direkt aus den Gruppen**, Spam- und Virenfilter, DKIM, DNS-Assistent, SMTP für Websites und Apps — und ein **Webmail** im Panel, das auch fremde Postfächer (IMAP/SMTP) verbindet — [mehr dazu](#e-mail).
-- **Backups mit restic:** verschlüsselt, dedupliziert, nach Zeitplan auf SFTP, S3, WebDAV/Nextcloud, FTP(S) oder Dropbox; einzelne Dateien und Datenbanken zurückholen — [mehr dazu](#sicherung).
+- **Backups mit restic:** verschlüsselt, dedupliziert, nach Zeitplan auf SFTP, S3, WebDAV/Nextcloud, FTP(S), Dropbox oder in einen Bucket deiner RedDrop-Installation; einzelne Dateien und Datenbanken zurückholen — [mehr dazu](#sicherung).
 - **Module zum Einschalten:** Abstimmungen und digitale Mitgliederversammlung, Inventar mit Verleih und Raumbuchung, Shop, digitaler Mitgliederausweis mit Einlass-Scanner, Auswertungen mit Monatsbericht — und Erweiterungen von Dritten (abgeschottet, nur mit freigegebenen Rechten).
 - **Löschschutz:** Papierkorb für 30 Tage, „Rückgängig“ direkt nach dem Löschen, große Löschungen nur mit eingetipptem Namen.
 - **Verbindungen:** Dateien und Fotos über [RedDrop](https://www.theredstonee.de/reddrop/) (Ordner im Mitgliederbereich, Upload-Links), **Anmeldung mit dem RedClub-Zugang** in anderen Apps (OpenID Connect), automatische Mitglieder-Lizenzen aus einer [TRS License](https://www.theredstonee.de/license/).
@@ -59,7 +59,7 @@ curl -fsSL https://raw.githubusercontent.com/theredstonee/redclub-docker/main/in
 ```
 
 Das Skript erledigt Folgendes:
-- legt alles nach **`/opt/redclub`** (anderer Ordner: `curl … | sudo RC_DIR=/srv/redclub bash`; auf **Unraid** nach `/mnt/user/appdata/redclub`, weil dort alles außerhalb von `/boot` und `/mnt` nach einem Neustart weg ist — eine bestehende Installation in `/opt` zieht beim nächsten Update von selbst um)
+- legt alles nach **`/opt/redclub`** (anderer Ordner: `curl … | sudo RC_DIR=/srv/redclub bash`)
 - installiert Docker, falls nötig
 - erzeugt ein Datenbank-Passwort und startet alles
 - zeigt am Ende die Adresse und den **Setup-Code**
@@ -190,7 +190,7 @@ Panel → **Einstellungen → Umzug** (nur der Inhaber): „Umzugsdatei erstelle
 
 Panel → **System → Backups**: RedClub sichert Vereinsdatenbank, Belege und Dokumente sowie auf Wunsch die Hosting-Seiten und ihre Datenbanken mit **restic** — verschlüsselt und dedupliziert (unveränderte Daten kosten keinen Platz).
 
-- **Ziele:** SFTP, S3 (auch kompatible Anbieter), WebDAV/Nextcloud, FTP(S), Dropbox oder ein Ordner auf dem Server. Mehrere Pläne mit eigenem Zeitplan und Aufbewahrung (z. B. 7 täglich, 4 wöchentlich, 12 monatlich).
+- **Ziele:** SFTP, S3 (auch kompatible Anbieter, mit Path-Style für MinIO/Garage), WebDAV/Nextcloud, FTP(S), Dropbox, **RedDrop** (einen Bucket mit Zugangsschlüssel unter „Speicher“ in RedDrop anlegen — läuft RedDrop im selben Compose, spricht RedClub es intern an) oder ein Ordner auf dem Server. Mehrere Pläne mit eigenem Zeitplan und Aufbewahrung (z. B. 7 täglich, 4 wöchentlich, 12 monatlich).
 - **Wiederherstellungsschlüssel:** einmal beim Einrichten angezeigt und als Notfallblatt (PDF) zum Ausdrucken — ohne ihn lassen sich die Backups nicht lesen.
 - **Zurückholen:** Snapshots durchstöbern, einzelne Dateien herunterladen oder ganze Seiten und Datenbanken zurückspielen.
 

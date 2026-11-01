@@ -1,16 +1,16 @@
 {
-  "version": "2.6.2",
-  "datum": "2026-10-31",
+  "version": "2.7.0",
+  "datum": "2026-11-01",
   "hinweise": {
     "de": [
-      "Neu: DNS-Assistent für den Mailserver — für jeden Eintrag (MX, A, SPF, DKIM, DMARC, PTR, SRV) siehst du Soll und Ist mit Erklärung, kannst eine fertige DNS-Datei herunterladen oder die Einträge nach einer Vorschau direkt bei Cloudflare eintragen lassen. Behoben: Der A-Eintrag wurde fälschlich als falsch angezeigt, wenn sich die Server-IP seit der Einrichtung geändert hatte.",
-      "Einrichtung hinter eigenem Webserver: Der Assistent erkennt jetzt, wenn die Installation ohne eigenen Caddy läuft, und bietet „Eigene Domain“ dort nicht mehr an (das konnte nie funktionieren). Stattdessen richtet er nginx oder Apache samt Virtual Host, HTTPS (Let’s Encrypt) und HSTS auf Knopfdruck selbst ein — mit Live-Protokoll.",
-      "Sicherheit: Der Update-Dienst auf dem Server schreibt Status- und Protokolldateien jetzt so, dass ihm keine untergeschobene Verknüpfung aus dem RedClub-Container mehr Dateien auf dem Server überschreiben lassen kann. Bitte zeitnah aktualisieren."
+      "Neu: Backups direkt nach RedDrop — als Ziel einfach die RedDrop-Adresse, einen Bucket und dessen Zugangsschlüssel eintragen (RedDrop 1.6.0, „Speicher“). Verschlüsselt mit deinem Wiederherstellungs-Schlüssel, mit Zeitplan, Aufbewahrung und Wiederherstellen aus RedClub. Läuft RedDrop im selben Compose, geht es intern ohne Umweg übers Internet.",
+      "Behoben: Bei S3-Zielen wurde die Einstellung „Path-Style“ nie verwendet — selbst gehostete Speicher wie MinIO oder Garage sind jetzt im Formular per Haken nutzbar.",
+      "Sicherheit: Backup-Ziele dürfen nicht mehr auf interne Adressen des Servers zeigen (127.0.0.1, Link-Local wie 169.254.x). Wer Adresse, Bucket oder Benutzer eines Ziels ändert, muss Passwort bzw. Geheimnis neu eingeben — gespeicherte Zugangsdaten lassen sich so nicht an einen anderen Server umleiten."
     ],
     "en": [
-      "New: DNS assistant for the mail server — for every record (MX, A, SPF, DKIM, DMARC, PTR, SRV) you see expected and actual values with an explanation, can download a ready-made DNS zone file or have the records created at Cloudflare after a preview. Fixed: the A record was wrongly shown as incorrect when the server IP had changed since setup.",
-      "Setup behind your own web server: the wizard now detects installations without their own Caddy and no longer offers “Own domain” there (it could never work). Instead it sets up nginx or Apache including the virtual host, HTTPS (Let’s Encrypt) and HSTS with one click — with a live log.",
-      "Security: the update service on the server now writes its status and log files so that a planted link from the RedClub container can no longer make it overwrite files on the server. Please update soon."
+      "New: backups straight to RedDrop — as the target just enter the RedDrop address, a bucket and its access key (RedDrop 1.6.0, “Storage”). Encrypted with your recovery key, with schedules, retention and restore from RedClub. If RedDrop runs in the same Compose, traffic stays internal.",
+      "Fixed: the “path style” setting of S3 targets was never used — self-hosted storage such as MinIO or Garage now works via a checkbox in the form.",
+      "Security: backup targets can no longer point to internal addresses of the server (127.0.0.1, link-local such as 169.254.x). Changing the address, bucket or user of a target requires entering the password or secret again — stored credentials can no longer be redirected to another server."
     ]
   }
 }
