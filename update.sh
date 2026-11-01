@@ -13,7 +13,7 @@ set -uo pipefail
 exec </dev/null
 # RC_QUELLE nur fuer Tests (eigener Dateiserver statt GitHub)
 QUELLE="${RC_QUELLE:-https://raw.githubusercontent.com/theredstonee/redclub-docker/main}"
-DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.hosting.yml compose.sftp.yml compose.phpdb.yml compose.mail.yml compose.mail-caddy.yml compose.mail-le.yml Caddyfile install.sh update.sh .env.example README.md version.json"
+DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.hosting.yml compose.sftp.yml compose.phpdb.yml Caddyfile install.sh update.sh .env.example README.md version.json"
 DIR="${RC_DIR:-}"; STATUS=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -176,6 +176,7 @@ done
 # Docker Compose merkt sich den Ordner jeder Installation im Container-Label. Vorrang: laufende Installationen, dann
 # gestoppte, erst danach Ordner auf der Platte mit einer docker-compose.yml fuer unser Image. Ein Ordner pro Zeile.
 inst_echt() { # inst_echt <ordner> — nur Ordner, deren COMPOSE_FILE ausschliesslich mitgelieferte Dateien nennt (Test-/Eigenbau-Umgebungen nie uebernehmen)
+  # compose.mail*.yml werden nicht mehr mitgeliefert, zaehlen aber weiter: aeltere Installationen nennen sie noch, bis mail_ausbauen sie entfernt
   local cf x
   cf=$(sed -n 's/^COMPOSE_FILE=//p' "$1/.env" 2>/dev/null | tail -1 | tr -d '"'"'"'\r')
   [ -n "$cf" ] || return 0
@@ -390,17 +391,49 @@ weg_retten
 if [ -n "$WEG_GERETTET" ]; then info "${Y}Die .env kannte keinen Weg nach außen — übernommen ($WEG_GERETTET), damit der Neustart RedClub nicht unerreichbar macht.${N}" "${Y}.env had no way in from outside — taken over ($WEG_GERETTET) so the restart does not make RedClub unreachable.${N}"
 elif ! grep -q '^COMPOSE_FILE=' .env && ! grep -q '^COMPOSE_PROFILES=.*tunnel' .env; then info "${Y}Achtung: Die .env kennt keinen Weg nach außen (kein Port, kein Caddy, kein Tunnel) — RedClub ist danach nur intern erreichbar. Beheben: install.sh erneut ausführen.${N}" "${Y}Warning: .env knows no way in (no port, Caddy or tunnel) — RedClub is only reachable internally afterwards. Fix: run install.sh again.${N}"; fi
 
+# Der eigene Mailserver ist aus RedClub entfernt: compose.mail*.yml aus COMPOSE_FILE nehmen. Den Container beendet danach
+# „docker compose up -d --remove-orphans“ — das entfernt nur den Container, Volumes bleiben stehen (kein -v, kein „down“).
+# Rueckgabe 0 = es gibt etwas zu entfernen (auch: COMPOSE_FILE schon sauber, aber der Container eines abgebrochenen Laufs steht noch).
+# MAIL_VOLUME = Volume mit den Postfaechern, MAIL_CF_ALT = COMPOSE_FILE vorher (fuer den Ruecksprung). Die Dateien im Ordner bleiben liegen.
+mail_ausbauen() {
+  local cf neu="" x c proj
+  MAIL_VOLUME=""; MAIL_CF_ALT=""
+  cf=$(sed -n 's/^COMPOSE_FILE=//p' .env 2>/dev/null | tail -1 | tr -d '"'"'"'\r')
+  proj=$(docker compose config 2>/dev/null | sed -n 's/^name: *//p' | head -1); [ -n "$proj" ] || proj=$(basename "$PWD")
+  c=$(docker ps -aq --filter "label=com.docker.compose.project=$proj" --filter label=com.docker.compose.service=mail 2>/dev/null | head -1)
+  [ -z "$c" ] || MAIL_VOLUME=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/var/mail"}}{{.Name}}{{end}}{{end}}' "$c" 2>/dev/null)
+  [ -n "$MAIL_VOLUME" ] || MAIL_VOLUME="${proj}_maildaten"
+  case ":$cf:" in
+    *:compose.mail.yml:*|*:compose.mail-caddy.yml:*|*:compose.mail-le.yml:*) ;;
+    *) [ -n "$c" ]; return ;;
+  esac
+  for x in $(printf '%s' "$cf" | tr ':' ' '); do
+    case "$x" in compose.mail.yml|compose.mail-caddy.yml|compose.mail-le.yml) ;; *) neu="$neu${neu:+:}$x" ;; esac
+  done
+  MAIL_CF_ALT="$cf"
+  sed -i '/^COMPOSE_FILE=/d' .env
+  [ -z "$(tail -c 1 .env)" ] || echo >> .env
+  echo "COMPOSE_FILE=${neu:-docker-compose.yml}" >> .env
+  chmod 600 .env
+  return 0
+}
+MAIL_WEG=""; MAIL_UP=""; MAIL_CF_ALT=""
+if mail_ausbauen; then
+  MAIL_WEG=1; MAIL_UP="--remove-orphans"
+  info "Der eigene Mailserver wird entfernt: Container beenden, Volumes bleiben." "The built-in mail server is being removed: stopping the container, volumes stay."
+fi
+
 # 2. Neues Image laden und neu starten (alle Dienste der .env: App, Datenbank, Caddy, Tunnel …)
 schritt "Neues Image laden und neu starten" "Pulling the new image and restarting"
 status laeuft "$(s "Image wird geladen" "Pulling the image")"
 if [ -d .output ]; then
   warte "Image wird gebaut und gestartet" "Building and starting the image"
-  lauf docker compose up -d --build || abbruch "Neustart fehlgeschlagen: $(kurz "$AUSGABE")" "Restart failed: $(kurz "$AUSGABE")"
+  lauf docker compose up -d --build $MAIL_UP || abbruch "Neustart fehlgeschlagen: $(kurz "$AUSGABE")" "Restart failed: $(kurz "$AUSGABE")"
 else
   warte "Neues Image wird geladen" "Pulling the new image"
   lauf docker compose pull --ignore-buildable || lauf docker compose pull || abbruch "Image konnte nicht geladen werden: $(kurz "$AUSGABE")" "Could not pull the image: $(kurz "$AUSGABE")"
   warte "Container werden neu gestartet" "Restarting the containers"
-  lauf docker compose up -d || abbruch "Neustart fehlgeschlagen: $(kurz "$AUSGABE")" "Restart failed: $(kurz "$AUSGABE")"
+  lauf docker compose up -d $MAIL_UP || abbruch "Neustart fehlgeschlagen: $(kurz "$AUSGABE")" "Restart failed: $(kurz "$AUSGABE")"
 fi
 warte "Datenbank-Zugang wird geprüft" "Checking database access"
 db_rc=0; db_passwort_angleichen || db_rc=$?
@@ -436,6 +469,8 @@ else
   while IFS= read -r z; do protokoll "    $z"; done < "$AUSG.app"
   info "${Y}Die neue Fassung meldet sich nicht gesund (${zustand:-kein Container}) — zurueck auf die vorherige.${N}" "${Y}The new version does not report healthy (${zustand:-no container}) — rolling back.${N}"
   for f in $geaendert; do if [ -f "$sich/$f" ]; then cp -a "$sich/$f" "$f"; else rm -f "$f"; fi; done
+  # Die vorherige Fassung hat den Mailserver noch: COMPOSE_FILE wie vorher, „up -d“ unten startet ihn wieder (gleiche Volumes)
+  if [ -n "$MAIL_CF_ALT" ]; then sed -i '/^COMPOSE_FILE=/d' .env; echo "COMPOSE_FILE=$MAIL_CF_ALT" >> .env; chmod 600 .env; fi
   if [ -n "$SICHER_BILD" ] && [ -n "$bild_name" ]; then docker tag "$SICHER_BILD" "$bild_name" >/dev/null 2>&1 || true
   elif [ -n "$bild_alt" ] && [ -n "$bild_name" ]; then docker tag "$bild_alt" "$bild_name" >/dev/null 2>&1 || true; fi
   warte "Vorherige Fassung wird wieder gestartet" "Starting the previous version again"
@@ -469,6 +504,11 @@ status fertig "$dienst_hinweis"
 echo ""
 ver="$neu"; [ -n "$alt" ] && [ -n "$neu" ] && [ "$alt" != "$neu" ] && ver="$alt → $neu"
 echo "${G}${B}${Z_OK} $(s "Fertig" "Done")${N} ${D}($(s "nach" "after") ${SECONDS} s)${N}${ver:+ ${D}— RedClub $ver${N}}"
+if [ -n "$MAIL_WEG" ]; then
+  info "${Y}Der eigene Mailserver ist entfernt. Die Postfächer bleiben im Volume $MAIL_VOLUME erhalten — gelöscht wurde nichts.${N}" "${Y}The built-in mail server is removed. The mailboxes stay in the volume $MAIL_VOLUME — nothing was deleted.${N}"
+  info "Vorsicht: „docker volume prune“ kann nicht mehr benutzte Volumes löschen. Mail selbst hosten: RedPost, https://www.theredstonee.de/redpost/" "Careful: “docker volume prune” can delete volumes no longer in use. To host mail yourself: RedPost, https://www.theredstonee.de/redpost/"
+  info "Lief der Versand aus RedClub über diesen Mailserver: SMTP-Zugang unter Einstellungen → Installation neu eintragen." "If RedClub sent its e-mail through this mail server: enter an SMTP account under Settings → Instance."
+fi
 if [ -z "$dienst_hinweis" ]; then
   info "Ab jetzt reicht im Panel unten links „Jetzt aktualisieren“ — auch dieser Dienst aktualisiert sich dann selbst." "From now on “Update now” at the bottom left of the panel is enough — the service then updates itself too."
 else

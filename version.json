@@ -1,12 +1,18 @@
 {
-  "version": "2.7.1",
+  "version": "2.8.0",
   "datum": "2026-11-01",
   "hinweise": {
     "de": [
-      "Behoben: PDF-Belege blieben beim Ansehen im Browser leer, direkt geöffnete Videos und PDFs der Vereins-Website ebenso."
+      "Wichtig: Der eigene Mailserver und das Webmail sind aus RedClub entfernt. Beim Update wird ein laufender Mail-Container beendet, ab dann kommen dort keine Mails mehr an. Die Postfächer bleiben als Docker-Volume erhalten. Wer Mail selbst hosten will: RedPost.",
+      "E-Mails aus RedClub (Rechnungen, Rundmails, Benachrichtigungen) gehen nur noch über den SMTP-Zugang unter Einstellungen. Wer bisher den eigenen Mailserver dafür genutzt hat, trägt dort einen neuen Zugang ein.",
+      "Neues Auswahlmenü überall: Die Listen des Browsers sind ersetzt. Es sieht in hell und dunkel gleich aus und lässt sich mit Maus und Tastatur bedienen.",
+      "Behoben: Die Einrichtung des Webservers brach ab, wenn nginx gerade nicht lief."
     ],
     "en": [
-      "Fixed: PDF receipts stayed blank when viewed in the browser, and so did directly opened videos and PDFs on the club website."
+      "Important: the built-in mail server and webmail have been removed from RedClub. The update stops a running mail container, and it will no longer receive e-mail. Mailboxes stay in their Docker volume. To host e-mail yourself, see RedPost.",
+      "E-mails from RedClub (invoices, newsletters, notifications) now only go through the SMTP access in the settings. If you used the built-in mail server for this, enter a new access there.",
+      "New selection menu everywhere: the browser's own lists are gone. It looks the same in light and dark and works with mouse and keyboard.",
+      "Fixed: web server setup failed when nginx was not running."
     ]
   }
 }

@@ -22,7 +22,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/theredstonee/redclub-docker/main/update.sh | sudo bash
 set -euo pipefail
 QUELLE="${RC_QUELLE:-https://raw.githubusercontent.com/theredstonee/redclub-docker/main}"   # RC_QUELLE nur fuer Tests
-DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.hosting.yml compose.sftp.yml compose.phpdb.yml compose.mail.yml compose.mail-caddy.yml compose.mail-le.yml Caddyfile install.sh update.sh .env.example README.md version.json"
+DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.hosting.yml compose.sftp.yml compose.phpdb.yml Caddyfile install.sh update.sh .env.example README.md version.json"
 # Unraid: ausser /boot (USB-Stick) und /mnt (Array/Cache) liegt alles im Arbeitsspeicher — nach einem Neustart waeren
 # Compose-Dateien und .env weg (die Datenbank im Docker-Volume bleibt, passt dann aber nicht mehr zu einer neuen .env).
 # Darum gehoert die Installation dort nach /mnt/user/appdata/<Ordnername>: gleicher Name → gleicher Compose-Projektname
@@ -51,6 +51,7 @@ unraid_umziehen() {
 # Docker Compose merkt sich den Ordner jeder Installation im Container-Label. Vorrang: laufende Installationen, dann
 # gestoppte, erst danach Ordner auf der Platte mit einer docker-compose.yml fuer unser Image. Ein Ordner pro Zeile.
 inst_echt() { # inst_echt <ordner> — nur Ordner, deren COMPOSE_FILE ausschliesslich mitgelieferte Dateien nennt (Test-/Eigenbau-Umgebungen nie uebernehmen)
+  # compose.mail*.yml werden nicht mehr mitgeliefert, zaehlen aber weiter: aeltere Installationen nennen sie noch, bis mail_ausbauen sie entfernt
   local cf x
   cf=$(sed -n 's/^COMPOSE_FILE=//p' "$1/.env" 2>/dev/null | tail -1 | tr -d '"'"'"'\r')
   [ -n "$cf" ] || return 0
@@ -519,10 +520,10 @@ domain_aus() {
 }
 
 bearbeiten() { # bearbeiten <anfrage-datei>
-  local f="$1" id aktion tok dom alias php zert schalter port adr art out
+  local f="$1" id aktion tok dom alias php zert schalter port art out
   id=$(feld id 'a-z0-9-' "$f"); aktion=$(feld aktion 'a-z-' "$f"); tok=$(feld token 'A-Za-z0-9+/=_-' "$f")
   dom=$(feld domain 'a-z0-9.-' "$f"); alias=$(feld aliase 'a-z0-9. -' "$f"); php=$(feld php '0-9.' "$f"); zert=$(feld zert 'a-z' "$f"); schalter=$(feld schalter 'a-z' "$f"); port=$(feld port '0-9' "$f")
-  adr=$(feld adresse 'a-z0-9._+@-' "$f"); art=$(feld art 'a-z' "$f")
+  art=$(feld art 'a-z' "$f")
   # Ohne Aktion gilt „update“ nur fuer die Datei alter Apps — sonst ist der Auftrag kaputt
   if [ -z "$aktion" ] && [ "$(basename "$f")" != "0-alt.json" ]; then rm -f "$f"; schreib "$id" "" fehler "Auftrag ohne gueltige Aktion"; return 1; fi
   rm -f "$f"
@@ -604,33 +605,6 @@ bearbeiten() { # bearbeiten <anfrage-datei>
         if printf '%s' "$out" | grep -qi 'address already in use\|port is already allocated'; then out="Port $port ist auf dem Server schon belegt — bitte einen anderen waehlen"; fi
         schreib "$id" "" fehler "$(kurz "$out")"
       fi ;;
-    mail-an)
-      # Eigener Mailserver (compose.mail.yml); Zertifikat von Caddy bzw. certbot, sonst selbst erzeugt (mailkonfig/ssl)
-      schreib "$id" "" laeuft ""
-      [ -n "$dom" ] || { schreib "$id" "" fehler "Name des Mailservers fehlt"; return 1; }
-      for d in compose.mail.yml compose.mail-caddy.yml compose.mail-le.yml; do holen "$d" || { schreib "$id" "" fehler "$d liess sich nicht laden"; return 1; }; datei_an aus "$d"; done
-      env_setzen RC_MAIL_HOST "$dom"; env_setzen RC_MAIL_POSTMASTER "postmaster@${dom#*.}"
-      if [ "$schalter" = an ]; then env_setzen RC_MAIL_CLAMAV 1; else env_setzen RC_MAIL_CLAMAV 0; fi
-      datei_an an compose.mail.yml
-      case "$zert" in
-        caddy) if docker compose exec -T caddy test -f "/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/$dom/$dom.crt" 2>/dev/null; then datei_an an compose.mail-caddy.yml; else zert=datei; fi ;;
-        le) if [ -f "/etc/letsencrypt/live/$dom/fullchain.pem" ]; then datei_an an compose.mail-le.yml; else zert=datei; fi ;;
-        *) zert=datei ;;
-      esac
-      # Konfig-Ordner gehoert der App (Nutzer 1000): sie schreibt Konten, Aliase und DKIM, der Mailserver liest nur.
-      # Ohne das legt docker-mailserver das Volume als root an und startet mangels Konten nicht.
-      if out=$(docker compose pull --ignore-pull-failures mail 2>&1 && docker compose run --rm --no-deps -u root --entrypoint chown app 1000:1000 /mailkonfig /maildaten 2>&1 && docker compose up -d mail app 2>&1); then schreib "$id" "" fertig "$zert"; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
-    mail-aus)
-      schreib "$id" "" laeuft ""
-      docker compose stop mail >/dev/null 2>&1; docker compose rm -f mail >/dev/null 2>&1
-      for d in compose.mail.yml compose.mail-caddy.yml compose.mail-le.yml; do datei_an aus "$d"; done
-      if out=$(docker compose up -d app 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
-    mail-ordner-weg)
-      # gespeicherte Mails eines geloeschten Postfachs — Adresse streng pruefen (kein „..“, kein „/“)
-      local lok="${adr%@*}" mdom="${adr#*@}"
-      if [[ "$lok" =~ ^[a-z0-9][a-z0-9._+-]*$ ]] && [[ "$mdom" =~ ^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$ ]] && [[ "$lok" != *..* ]] && [[ "$mdom" != *..* ]]; then
-        if out=$(docker compose exec -T mail rm -rf -- "/var/mail/$mdom/$lok" 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi
-      else schreib "$id" "" fehler "ungueltige Adresse"; fi ;;
     webserver-info)
       # Assistent: welcher Webserver ist da, sind Port 80/443 frei, laesst sich einer installieren?
       declare -F ws_info >/dev/null || { schreib "$id" "" fehler "ws_info fehlt im Dienst (install.sh --dienst erneut ausfuehren)"; return 1; }
@@ -750,7 +724,7 @@ SKRIPT
     chmod 644 /etc/cron.d/redclub-update; ausloeser="cron"
   fi
   [ -n "$ausloeser" ] || { DIENST_GRUND="$(s "Weder systemd noch cron laufen auf diesem Server – ohne einen davon kann der Knopf im Panel nichts ausloesen." "Neither systemd nor cron is running on this server – without one the panel button cannot trigger anything.")"; return 1; }
-  printf '%s\naktionen=update tunnel website domain hosting php sftp caddy zert anfragen phpzusatz phpdbfern mail webserver\nstand=5\n' "$PWD" | ablegen "$daten/.updater" \
+  printf '%s\naktionen=update tunnel website domain hosting php sftp caddy zert anfragen phpzusatz phpdbfern webserver\nstand=5\n' "$PWD" | ablegen "$daten/.updater" \
     || { DIENST_GRUND="$(s "Die Marker-Datei .updater liess sich im Datenordner nicht anlegen ($daten)." "The marker file .updater could not be created in the data folder ($daten).")"; return 1; }
   # gleich einmal fuer den Assistenten festhalten, welcher Webserver da ist (spaeter frisch per Aktion „webserver-info“)
   { ws_info | ablegen "$daten/.webserver-info"; } 2>/dev/null || true
@@ -1204,8 +1178,41 @@ db_passwort_angleichen() {
   return 2
 }
 
+# Der eigene Mailserver ist aus RedClub entfernt: compose.mail*.yml aus COMPOSE_FILE nehmen. Den Container beendet danach
+# „docker compose up -d --remove-orphans“ — das entfernt nur den Container, Volumes bleiben stehen (kein -v, kein „down“).
+# Rueckgabe 0 = es gibt etwas zu entfernen (auch: COMPOSE_FILE schon sauber, aber der Container eines abgebrochenen Laufs steht noch).
+# MAIL_VOLUME = Volume mit den Postfaechern. Die Dateien im Ordner bleiben liegen. Gleiche Fassung wie in update.sh.
+mail_ausbauen() {
+  local cf neu="" x c proj
+  MAIL_VOLUME=""
+  cf=$(sed -n 's/^COMPOSE_FILE=//p' .env 2>/dev/null | tail -1 | tr -d '"'"'"'\r')
+  proj=$(docker compose config 2>/dev/null | sed -n 's/^name: *//p' | head -1); [ -n "$proj" ] || proj=$(basename "$PWD")
+  c=$(docker ps -aq --filter "label=com.docker.compose.project=$proj" --filter label=com.docker.compose.service=mail 2>/dev/null | head -1)
+  [ -z "$c" ] || MAIL_VOLUME=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/var/mail"}}{{.Name}}{{end}}{{end}}' "$c" 2>/dev/null)
+  [ -n "$MAIL_VOLUME" ] || MAIL_VOLUME="${proj}_maildaten"
+  case ":$cf:" in
+    *:compose.mail.yml:*|*:compose.mail-caddy.yml:*|*:compose.mail-le.yml:*) ;;
+    *) [ -n "$c" ]; return ;;
+  esac
+  for x in $(printf '%s' "$cf" | tr ':' ' '); do
+    case "$x" in compose.mail.yml|compose.mail-caddy.yml|compose.mail-le.yml) ;; *) neu="$neu${neu:+:}$x" ;; esac
+  done
+  sed -i '/^COMPOSE_FILE=/d' .env
+  [ -z "$(tail -c 1 .env)" ] || echo >> .env
+  echo "COMPOSE_FILE=${neu:-docker-compose.yml}" >> .env
+  chmod 600 .env
+  return 0
+}
+MAIL_WEG=""; MAIL_UP=""
+if mail_ausbauen; then MAIL_WEG=1; MAIL_UP="--remove-orphans"; fi
+
 # 5. Starten
-if [ -d .output ]; then docker compose up -d --build; else docker compose pull && docker compose up -d; fi
+if [ -d .output ]; then docker compose up -d --build $MAIL_UP; else docker compose pull && docker compose up -d $MAIL_UP; fi
+if [ -n "$MAIL_WEG" ]; then
+  say "==> Der eigene Mailserver ist entfernt. Die Postfächer bleiben im Volume $MAIL_VOLUME erhalten — gelöscht wurde nichts." "==> The built-in mail server is removed. The mailboxes stay in the volume $MAIL_VOLUME — nothing was deleted."
+  say "    Vorsicht: „docker volume prune“ kann nicht mehr benutzte Volumes löschen. Mail selbst hosten: RedPost, https://www.theredstonee.de/redpost/" "    Careful: “docker volume prune” can delete volumes no longer in use. To host mail yourself: RedPost, https://www.theredstonee.de/redpost/"
+  say "    Lief der Versand aus RedClub über diesen Mailserver: SMTP-Zugang unter Einstellungen → Installation neu eintragen." "    If RedClub sent its e-mail through this mail server: enter an SMTP account under Settings → Instance."
+fi
 db_rc=0; db_passwort_angleichen || db_rc=$?
 if [ "$db_rc" = 2 ]; then say "    Das Datenbank-Passwort passte nicht zur .env — angeglichen (Daten bleiben)." "    The database password did not match .env — fixed (data kept)."
 elif [ "$db_rc" = 1 ]; then say "    FEHLER: Das Datenbank-Passwort passt nicht zur .env und liess sich nicht angleichen." "    ERROR: The database password does not match .env and could not be fixed."; fi
