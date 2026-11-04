@@ -1,14 +1,16 @@
 {
-  "version": "2.8.1",
-  "datum": "2026-11-01",
+  "version": "2.9.0",
+  "datum": "2026-11-04",
   "hinweise": {
     "de": [
-      "Behoben: Ein leeres Pflichtfeld im neuen Auswahlmenü sperrte das Absenden nicht immer. Jetzt öffnet sich die Liste und das Feld wird markiert.",
-      "Aus 2.8.0: Der eigene Mailserver und das Webmail sind entfernt. Beim Update wird ein laufender Mail-Container beendet, die Postfächer bleiben als Docker-Volume erhalten. E-Mails aus RedClub gehen über den SMTP-Zugang unter Einstellungen."
+      "Neues optionales Modul Infrastruktur: Server und IP-Adressen, Domains und Zertifikate, Kosten und Verträge, Racks und Kabel an einer Stelle, mit Zuständigen und Warnungen vor Ablauf. Einschalten unter Einstellungen, Module.",
+      "Beta: Die Anbindung an Skrime (Abgleich, Starten und Stoppen) lief noch nicht gegen die echte Skrime-Schnittstelle und kann scheitern. Prüfe die Werte bei Skrime. Einträge von Hand funktionieren unabhängig davon.",
+      "Zugangsdaten gehören nicht in das Modul, es gibt nur einen Verweis auf den Ort. Bestehende Vereinsdaten bleiben unverändert."
     ],
     "en": [
-      "Fixed: an empty required field in the new selection menu did not always block submitting. The list now opens and the field is marked.",
-      "From 2.8.0: the built-in mail server and webmail are removed. The update stops a running mail container, mailboxes stay in their Docker volume. E-mails from RedClub go through the SMTP access in the settings."
+      "New optional Infrastructure module: servers and IP addresses, domains and certificates, costs and contracts, racks and cables in one place, with people responsible and expiry warnings. Turn it on under Settings, Modules.",
+      "Beta: the Skrime connection (sync, start and stop) has not yet run against the real Skrime interface and may fail. Check the values at Skrime. Manual entries work independently of this.",
+      "Credentials do not belong in the module, it only holds a pointer to where they are kept. Existing club data stays unchanged."
     ]
   }
 }

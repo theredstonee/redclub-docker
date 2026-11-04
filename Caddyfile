@@ -1,18 +1,11 @@
-# RedClub — Caddy holt und verlaengert die SSL-Zertifikate selbst (Let's Encrypt).
-# "On demand": ein Zertifikat gibt es nur fuer die Domain, die im Setup eingerichtet wurde —
-# Caddy fragt dafuer die App (/api/internal/caddy-ask). Mit compose.reddrop.yml zusaetzlich fuer die
-# RedDrop-Domain (RC_REDDROP_DOMAIN); ohne RedDrop zeigt der Platzhalter reddrop.invalid ins Leere.
 {
 	on_demand_tls {
 		ask http://app:3000/api/internal/caddy-ask
 	}
 }
 
-# Eigene oder Cloudflare-Origin-Zertifikate (im Panel hochgeladen): je Domain ein Block, den die App
-# nach /data/caddy/ schreibt (hier schreibgeschuetzt unter /rc). Ohne Dateien passiert nichts.
 import /rc/caddy/*.caddy
 
-# HTTP: Setup ueber die IP und Weiterleitung auf HTTPS (macht die App, sobald eine Domain steht).
 :80 {
 	encode gzip zstd
 	@reddrop host {$RC_REDDROP_DOMAIN:reddrop.invalid}
@@ -20,7 +13,6 @@ import /rc/caddy/*.caddy
 		redir https://{host}{uri} 308
 	}
 	handle {
-		# Groesste erlaubte Anfrage (Uploads an RedDrop laufen ueber die eigene Domain von RedDrop)
 		request_body {
 			max_size 110MB
 		}
@@ -28,7 +20,6 @@ import /rc/caddy/*.caddy
 	}
 }
 
-# HTTPS fuer die eingerichtete Domain (und ggf. RedDrop).
 https:// {
 	tls {
 		on_demand
@@ -43,7 +34,6 @@ https:// {
 		reverse_proxy reddrop:3000
 	}
 	handle {
-		# Groesste erlaubte Anfrage (Uploads an RedDrop laufen ueber die eigene Domain von RedDrop)
 		request_body {
 			max_size 110MB
 		}

@@ -1,14 +1,3 @@
-# RedClub Hosting — PHP (Apache) + MariaDB fuer eigene Websites, WordPress, Joomla, Nextcloud.
-# Wird im Panel eingeschaltet (Hosting → Einschalten); der Update-Dienst haengt diese Datei an COMPOSE_FILE an
-# und erzeugt PHPDB_ROOT_PASSWORD in der .env.
-#
-# Volumes: www (Website-Dateien, App + PHP schreiben), hostkonfig (Apache-/PHP-Konfiguration, Cronjobs — NUR die App
-# schreibt, im PHP-Container schreibgeschuetzt: PHP-Code kann so keine Server-Konfiguration einschleusen),
-# hostlogs (Zugriffs-/Fehlerprotokolle, Status des Waechters — nur der PHP-Container schreibt, die App liest).
-#
-# Netze: web und phpdb liegen NUR im Netz „hosting“. Die RedClub-Datenbank (db) ist von dort nicht erreichbar —
-# PHP-Code der Websites kommt also nie an die Vereinsdaten. Die App haengt in beiden Netzen und leitet die
-# Hosting-Domains an web:80 weiter.
 services:
   app:
     volumes:
@@ -21,7 +10,6 @@ services:
       RC_PHP_VERSION: ${RC_PHP_VERSION:-8.3}
     networks: [default, hosting]
 
-  # Standard-PHP-Version (RC_PHP_VERSION) — bedient alle Seiten ohne eigene Versionswahl
   web: &web
     image: ghcr.io/theredstonee/redclub-php:${RC_PHP_VERSION:-8.3}
     restart: unless-stopped
@@ -39,8 +27,6 @@ services:
         condition: service_healthy
     stop_grace_period: 10s
 
-  # Weitere PHP-Versionen je Seite (2.0): laufen nur, wenn eine Seite sie nutzt — der Update-Dienst schaltet das
-  # Profil php82 … php85 ein oder aus (Panel: Seite → Einstellungen → PHP-Version)
   web82:
     <<: *web
     image: ghcr.io/theredstonee/redclub-php:8.2

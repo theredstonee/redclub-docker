@@ -1,39 +1,12 @@
 #!/usr/bin/env bash
-# RedClub — Installation auf einem Linux-Server (Debian/Ubuntu, auch RHEL-Verwandte).
-# One-liner / Einzeiler (installs to /opt/redclub, other folder: RC_DIR=/path):
-#   curl -fsSL https://raw.githubusercontent.com/theredstonee/redclub-docker/main/install.sh | sudo bash
-# Oder im Ordner mit den Dateien:  sudo bash install.sh
-# Entfernen / Uninstall:  sudo bash /opt/redclub/install.sh --uninstall
-#
-# Zwei Wege nach aussen, der Installer erkennt selbst, welcher passt:
-#   Caddy  — Port 80/443 sind frei: eigener Caddy mit automatischem HTTPS (Let's Encrypt).
-#   Port   — Port 80/443 sind schon belegt (nginx, Apache, Plesk …): die App bekommt einen freien
-#            Port auf 127.0.0.1, dein Webserver bekommt einen Virtual Host fuer die Domain.
-#
-# Schalter (optional):  --lang en|de  --port 8080  --domain verein.firma.de  --email du@firma.de
-#                       --caddy (Caddy erzwingen)  --no-vhost (keinen Virtual Host anlegen)
-#                       --webserver=nginx|apache|keiner (kein nginx/Apache da: diesen ohne Frage installieren,
-#                         samt Virtual Host + HTTPS per certbot; ohne Terminal und ohne Schalter nur die Vorlage)
-#                       --uninstall / --deinstallieren (Container, Webserver-Eintraege, auf Wunsch alle Daten)
-#                       --nur-vhost --domain d --webserver nginx|apache (nur Webserver + Virtual Host + HTTPS fuer eine
-#                         bestehende Installation im Port-Modus, ohne Fragen; ruft der Update-Dienst fuer den Assistenten auf)
-# Ein zweiter Aufruf aktualisiert nur (Image ziehen, neu starten) und fragt nichts mehr.
-# Nur aktualisieren (nichts neu einrichten, keine Fragen):
-#   curl -fsSL https://raw.githubusercontent.com/theredstonee/redclub-docker/main/update.sh | sudo bash
 set -euo pipefail
-QUELLE="${RC_QUELLE:-https://raw.githubusercontent.com/theredstonee/redclub-docker/main}"   # RC_QUELLE nur fuer Tests
+QUELLE="${RC_QUELLE:-https://raw.githubusercontent.com/theredstonee/redclub-docker/main}"
 DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.hosting.yml compose.sftp.yml compose.phpdb.yml Caddyfile install.sh update.sh .env.example README.md version.json"
-# Unraid: ausser /boot (USB-Stick) und /mnt (Array/Cache) liegt alles im Arbeitsspeicher — nach einem Neustart waeren
-# Compose-Dateien und .env weg (die Datenbank im Docker-Volume bleibt, passt dann aber nicht mehr zu einer neuen .env).
-# Darum gehoert die Installation dort nach /mnt/user/appdata/<Ordnername>: gleicher Name → gleicher Compose-Projektname
-# → dieselben Volumes. unraid_ziel <ordner> gibt den dauerhaften Ordner aus, wenn <ordner> im Arbeitsspeicher liegt.
 unraid_ziel() {
   [ -f /etc/unraid-version ] && [ -d /mnt/user ] || return 1
   case "$1" in /mnt/*|/boot/*) return 1 ;; esac
   printf '%s' "/mnt/user/appdata/$(basename "$1")"
 }
-# unraid_umziehen <alt> <neu> — Ordner kopieren, Dienst + Zeitplan auf den neuen Ordner umstellen, alten beiseitelegen.
-# Die laufenden Container bleiben, bis sie aus dem neuen Ordner neu gestartet werden (Update/Installation tun das).
 unraid_umziehen() {
   local alt="$1" neu="$2" a f
   [ -f "$alt/docker-compose.yml" ] || return 1
@@ -47,11 +20,7 @@ unraid_umziehen() {
   mv "$alt" "$alt.umgezogen-$(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
   return 0
 }
-# inst_suchen — vorhandene RedClub-Installation(en) finden, auch mit anderem Ordnernamen oder an ungewoehnlichem Ort.
-# Docker Compose merkt sich den Ordner jeder Installation im Container-Label. Vorrang: laufende Installationen, dann
-# gestoppte, erst danach Ordner auf der Platte mit einer docker-compose.yml fuer unser Image. Ein Ordner pro Zeile.
-inst_echt() { # inst_echt <ordner> — nur Ordner, deren COMPOSE_FILE ausschliesslich mitgelieferte Dateien nennt (Test-/Eigenbau-Umgebungen nie uebernehmen)
-  # compose.mail*.yml werden nicht mehr mitgeliefert, zaehlen aber weiter: aeltere Installationen nennen sie noch, bis mail_ausbauen sie entfernt
+inst_echt() {
   local cf x
   cf=$(sed -n 's/^COMPOSE_FILE=//p' "$1/.env" 2>/dev/null | tail -1 | tr -d '"'"'"'\r')
   [ -n "$cf" ] || return 0
@@ -59,7 +28,7 @@ inst_echt() { # inst_echt <ordner> — nur Ordner, deren COMPOSE_FILE ausschlies
     case "$x" in docker-compose.yml|compose.caddy.yml|compose.port.yml|compose.hosting.yml|compose.phpdb.yml|compose.sftp.yml|compose.reddrop.yml|compose.mail.yml|compose.mail-caddy.yml|compose.mail-le.yml) ;; *) return 1 ;; esac
   done
 }
-inst_ordner() { # inst_ordner <docker-ps-Schalter …> — Ordner der passenden App-Container
+inst_ordner() {
   local c d img
   command -v docker >/dev/null 2>&1 || return 0
   while IFS= read -r c; do
@@ -81,7 +50,6 @@ inst_suchen() {
     d=$(dirname "$f"); [ -f "$d/.env" ] && inst_echt "$d" && printf '%s\n' "$d"
   done < <(find /opt /srv /root /home /mnt/user/appdata /mnt/cache/appdata /docker /data -maxdepth 3 -name docker-compose.yml 2>/dev/null) | awk 'NF && !s[$0]++'
 }
-# --nur-vhost (vom Update-Dienst): nur im Ordner der Installation (RC_DIR) arbeiten — nichts suchen, umziehen oder laden
 NUR_VHOST=""
 for a in "$@"; do [ "$a" = "--nur-vhost" ] && NUR_VHOST="ja"; done
 if [ -n "$NUR_VHOST" ]; then
@@ -118,9 +86,8 @@ if [ -z "$NUR_VHOST" ] && [ -z "${RC_DIR:-}" ] && [ -f /etc/unraid-version ] && 
     fi
   fi
 fi
-# Ueber curl | bash gestartet (oder Dateien fehlen): alles nach /opt/redclub (Unraid: /mnt/user/appdata/redclub) holen und dort weitermachen
 if [ -n "$NUR_VHOST" ]; then
-  :   # schon oben in RC_DIR gewechselt
+  :
 elif [ -f "$0" ] && [ -f "$(dirname "$0")/docker-compose.yml" ]; then
   cd "$(dirname "$0")"
 else
@@ -128,9 +95,6 @@ else
   echo "==> RedClub: $ZIEL"
   mkdir -p "$ZIEL" && cd "$ZIEL"
   for f in $DATEIEN; do curl -fsSL -o "$f" "$QUELLE/$f" || { [ "$f" = "version.json" ] || { echo "ERROR: $f"; exit 1; }; }; done
-  # Fragen brauchen das Terminal (stdin ist bei curl | bash die Leitung) — ohne Terminal gelten die Vorgaben
-  # Rest des Skripts aus der curl-Leitung leer lesen: exec schliesst sie sonst, waehrend curl noch schreibt
-  # (Meldung „curl: (23) Failure writing output to destination“ am Ende, obwohl alles geklappt hat)
   [ -t 0 ] || cat >/dev/null 2>&1 || true
   if { true </dev/tty; } 2>/dev/null; then exec bash ./install.sh "$@" </dev/tty; else exec bash ./install.sh "$@"; fi
 fi
@@ -144,18 +108,17 @@ while [ $# -gt 0 ]; do
     --email) EMAIL="$2"; shift 2 ;;
     --caddy) MODUS="caddy"; shift ;;
     --no-vhost) VHOST="nein"; shift ;;
-    --webserver|--webserver=*)   # kein nginx/Apache da: diesen installieren (ohne Frage)
+    --webserver|--webserver=*)
       if [ "$1" = "--webserver" ]; then WS_WAHL="${2:-}"; shift $(( $# > 1 ? 2 : 1 )); else WS_WAHL="${1#*=}"; shift; fi
       WS_WAHL="${WS_WAHL,,}"
       case "$WS_WAHL" in nginx|apache|apache2|httpd|keiner|none) ;; *) echo "--webserver: nginx | apache | keiner (none)"; exit 1 ;; esac ;;
-    --dienst) NUR_DIENST="ja"; shift ;;   # nur den Update-Dienst neu einrichten (ruft update.sh auf)
-    --nur-vhost) shift ;;                 # oben schon erkannt (NUR_VHOST)
+    --dienst) NUR_DIENST="ja"; shift ;;
+    --nur-vhost) shift ;;
     --deinstallieren|--uninstall) WEG="ja"; shift ;;
     *) echo "Unknown option / Unbekannter Schalter: $1"; exit 1 ;;
   esac
 done
 
-# Aussehen: Farben nur im Terminal (RC_FARBE=1 erzwingt sie, NO_COLOR/TERM=dumb schaltet sie ab), Zeichen nur mit UTF-8
 if { [ -t 1 ] || [ -n "${RC_FARBE:-}" ]; } && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-}" != "dumb" ]; then
   R=$'\033[38;2;232;48;48m'; R2=$'\033[38;2;255;110;100m'; G=$'\033[38;2;74;222;128m'; Y=$'\033[38;2;251;191;36m'
   C=$'\033[38;2;125;211;252m'; D=$'\033[2m'; B=$'\033[1m'; U=$'\033[4m'; N=$'\033[0m'
@@ -165,7 +128,6 @@ if locale charmap 2>/dev/null | grep -qi 'utf-\?8' || echo "${LANG:-}${LC_ALL:-}
 else
   Z_SCHRITT=">"; Z_OK="OK"; Z_FEHLER="X"; Z_FRAGE="?"; Z_PUNKT="-"; K_OL="+"; K_OR="+"; K_UL="+"; K_UR="+"; K_H="-"; K_V="|"; SPIN=('|' '/' '-' '\')
 fi
-# --nur-vhost schreibt ins Live-Protokoll des Assistenten: Schritte dort immer als „==> …“
 if [ -n "$NUR_VHOST" ]; then Z_SCHRITT="==>"; Z_OK="==>"; Z_FEHLER="==>"; fi
 VERSION_TXT=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' version.json 2>/dev/null | head -1 || true)
 banner() {
@@ -180,20 +142,17 @@ banner() {
   echo "   ${D}${VERSION_TXT:+v$VERSION_TXT  ${Z_PUNKT}  }by TheRedStonee ${Z_PUNKT} https://www.theredstonee.de/redclub/${N}"
   echo ""
 }
-# Kasten um wichtige Werte (Setup-Code, Adresse): kasten FARBE "Zeile" ["Zeile" …]
 kasten() {
   local farbe="$1"; shift
   local breit=0 z
   for z in "$@"; do [ ${#z} -gt $breit ] && breit=${#z}; done
   local linie; linie=$(printf "%$((breit + 4))s" "" | sed "s/ /${K_H}/g")
   echo "  ${farbe}${K_OL}${linie}${K_OR}${N}"
-  # von Hand auffuellen: printf zaehlt Bytes, ${#z} Zeichen (Umlaute, „·“)
   for z in "$@"; do printf '  %s%s%s  %s%s%s%*s  %s%s%s\n' "$farbe" "$K_V" "$N" "$B" "$z" "$N" $((breit - ${#z})) "" "$farbe" "$K_V" "$N"; done
   echo "  ${farbe}${K_UL}${linie}${K_UR}${N}"
 }
 [ -n "${RC_KEIN_BANNER:-}" ] || banner
 
-# Sprache: Schalter → .env → fragen (Standard Englisch)
 [ -n "$SPR" ] || SPR=$(sed -n 's/^RC_LANG=//p' .env 2>/dev/null | tail -1 || true)
 if [ "$SPR" != "de" ] && [ "$SPR" != "en" ]; then
   SPR="en"
@@ -204,8 +163,8 @@ if [ "$SPR" != "de" ] && [ "$SPR" != "en" ]; then
     case "${wahl:-1}" in 2|de|d|deutsch|Deutsch) SPR="de" ;; esac
   fi
 fi
-s() { if [ "$SPR" = "de" ]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }   # s "deutsch" "english"
-say() { # Meldung je Art einfaerben: „==> Fertig/Done“ gruen, „==> “ Schritt, FEHLER/ERROR rot, eingerueckt = Detail
+s() { if [ "$SPR" = "de" ]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }
+say() {
   local m; m=$(s "$1" "$2")
   m=$(printf '%s' "$m" | sed -E "s#(https?://[^ )\"']+)#${C}${U}\1${N}#g")
   case "$m" in
@@ -218,26 +177,24 @@ say() { # Meldung je Art einfaerben: „==> Fertig/Done“ gruen, „==> “ Sch
   esac
 }
 
-# Zum Testen: RC_DRY_RUN=1 zeigt Aenderungen am Webserver nur an, statt sie auszufuehren.
 tu() { if [ "${RC_DRY_RUN:-}" = "1" ]; then echo "    ($(s Probelauf "dry run")) $*"; else "$@"; fi; }
-frage() { # frage "Text" "Vorgabe" -> Antwort (ohne Terminal: Vorgabe)
+frage() {
   local antwort=""
   local text="$1"; text="${text#==> }"; text="${text#    }"
   if [ -t 0 ]; then read -r -p "  ${Y}${Z_FRAGE}${N} ${text} ${D}[$2]${N} " antwort </dev/tty || true; fi
   echo "${antwort:-$2}"
 }
-ja() { # ja "Text" "j|n" -> 0 bei ja (akzeptiert j/ja/y/yes)
+ja() {
   local vorgabe="$2" a
   [ "$SPR" = "en" ] && { [ "$vorgabe" = "j" ] && vorgabe="y"; }
   a=$(frage "$1 ($(s j/n y/n))" "$vorgabe"); case "${a,,}" in j|ja|y|yes) return 0 ;; *) return 1 ;; esac
 }
-belegt() { # lauscht etwas auf dem Port?
+belegt() {
   if command -v ss >/dev/null 2>&1; then ss -ltnH "sport = :$1" 2>/dev/null | grep -q .
   else (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; fi
 }
 wer_lauscht() { ss -ltnpH "sport = :$1" 2>/dev/null | grep -o 'users:(("[^"]*"' | head -1 | sed 's/users:(("//'; }
 
-# Deinstallieren: Container weg, Webserver-Eintraege weg (mit Backup), auf Wunsch auch alle Daten und der Ordner
 if [ -n "$WEG" ]; then
   say "==> RedClub entfernen (Ordner: $PWD)" "==> Removing RedClub (folder: $PWD)"
   daten="nein"
@@ -250,14 +207,12 @@ if [ -n "$WEG" ]; then
     if [ "$daten" = "ja" ]; then docker compose down -v --remove-orphans || true; else docker compose down --remove-orphans || true; fi
     docker image rm ghcr.io/theredstonee/redclub:latest >/dev/null 2>&1 || true
   fi
-  # Update-Dienst
   rm -f /etc/cron.d/redclub-update
   if [ -f /etc/systemd/system/redclub-update.path ]; then
     systemctl disable --now redclub-update.path redclub-update.timer >/dev/null 2>&1 || true
     rm -f /etc/systemd/system/redclub-update.path /etc/systemd/system/redclub-update.service /etc/systemd/system/redclub-update.timer /usr/local/bin/redclub-update
     systemctl daemon-reload || true
   fi
-  # Unraid: Dienst + Zeitplan auf dem USB-Stick
   if [ -d /boot/config/plugins/redclub ]; then
     rm -rf /boot/config/plugins/redclub /boot/config/plugins/dynamix/redclub-update.cron /usr/local/bin/redclub-update
     [ -x /usr/local/sbin/update_cron ] && /usr/local/sbin/update_cron >/dev/null 2>&1
@@ -291,18 +246,12 @@ if [ -n "$WEG" ]; then
   exit 0
 fi
 
-# Symlink-sichere Schreibzugriffe von root in den Datenordner der App (gehoert dem App-Nutzer im Container).
-# Stehen per declare -f auch woertlich im Update-Dienst (siehe deploy/einbetten.py) — nur EINE Fassung.
-# sicher_ordner <ordner> — 0, wenn <ordner> ein echter Ordner ist und kein Link (auch nicht im letzten Glied):
-# physischer Pfad == physischer Pfad des Elternordners + Name.
 sicher_ordner() {
   local d="${1%/}" p
   [ -d "$d" ] && [ ! -L "$d" ] || return 1
   p=$(cd -P "${d%/*}/" 2>/dev/null && pwd) || return 1
   [ "$(cd -P "$d" 2>/dev/null && pwd)" = "${p%/}/${d##*/}" ]
 }
-# ablegen <pfad> — stdin als <pfad> ablegen (644), ohne je einem Link zu folgen: neue Datei mit O_EXCL (set -C)
-# im Ordner selbst (cd: ein danach vertauschter Ordner aendert nichts), dann umbenennen (folgt keinem Link).
 ablegen() {
   local d="${1%/*}" n="${1##*/}"
   sicher_ordner "$d" || return 1
@@ -311,8 +260,6 @@ ablegen() {
     ( umask 022; set -C; cat > "$t" ) 2>/dev/null || exit 1
     mv -fT "$t" "$n" 2>/dev/null || { rm -f "$n"; mv -f "$t" "$n"; } )
 }
-# log_oeffnen <pfad> <fd> — <pfad> frisch anlegen (644) und in EINEM Schritt (O_EXCL) auf Kanal <fd> oeffnen;
-# danach nur noch ueber /dev/fd/<fd> schreiben und lesen. Beispiel:  log_oeffnen "$DATEN/.update.log" 6 && LOG=/dev/fd/6
 log_oeffnen() {
   local d="${1%/*}" n="${1##*/}" t alt="$PWD" um rc=1 c=""
   case "$2" in [3-9]) ;; *) return 1 ;; esac
@@ -322,15 +269,12 @@ log_oeffnen() {
   case "$-" in *C*) c=1 ;; esac
   set -C
   if eval "exec $2>\"\$t\"" 2>/dev/null; then rc=0; fi
-  # gleich im Anhaenge-Modus neu oeffnen — ueber den Kanal selbst (dieselbe Datei), nicht ueber den Pfad
   if [ "$rc" = 0 ]; then eval "exec $2>>/dev/fd/$2" 2>/dev/null || true; fi
   [ -n "$c" ] || set +C; umask "$um"
   if [ "$rc" = 0 ]; then mv -fT "$t" "$n" 2>/dev/null || { rm -f "$n"; mv -f "$t" "$n"; }; fi
   cd "$alt" 2>/dev/null || true
   return "$rc"
 }
-# auftrags_ordner <daten> — .anfragen/ und .status/ als echte Ordner der App (uid 1000). Ein dort untergeschobener
-# Link (oder eine Datei) wird entfernt, nie verfolgt (chown -h aendert hoechstens den Link selbst).
 auftrags_ordner() {
   local o p
   for o in .anfragen .status; do
@@ -341,62 +285,37 @@ auftrags_ordner() {
   return 0
 }
 
-# 5b. Update-Dienst: der Knopf „Jetzt aktualisieren“ im Panel legt eine Anfrage-Datei in /data ab, ein
-#     systemd-Pfad-Dienst auf dem Server zieht dann das neue Image und startet die App neu. So braucht
-#     RedClub selbst keinen Zugriff auf Docker.
 updater_einrichten() {
   DIENST_GRUND=""
   local app daten
   app=$(docker compose ps -q app 2>/dev/null || true)
   [ -n "$app" ] || { DIENST_GRUND="$(s "Der App-Container laeuft nicht (docker compose ps app ist leer)." "The app container is not running (docker compose ps app is empty).")"; return 1; }
   daten=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Source}}{{end}}{{end}}' "$app" 2>/dev/null || true)
-  # Docker als Snap: docker inspect nennt /var/lib/docker/…, auf dem Server liegt es unter /var/snap/docker/common/var-lib-docker/…
   if [ -n "$daten" ] && [ ! -d "$daten" ] && [ -d "/var/snap/docker/common/var-lib-docker${daten#/var/lib/docker}" ]; then daten="/var/snap/docker/common/var-lib-docker${daten#/var/lib/docker}"; fi
   [ -n "$daten" ] && [ -d "$daten" ] || { DIENST_GRUND="$(s "Der Datenordner der App ($daten) ist vom Server aus nicht lesbar (Docker rootless oder in einer VM?)." "The app data folder ($daten) is not readable from the server (rootless Docker or inside a VM?).")"; return 1; }
-# >>> DIENST (aus deploy/dienst.sh, eingebettet von deploy/einbetten.py — hier nicht von Hand aendern)
-  { printf '#!/usr/bin/env bash\n# RedClub — Update-Dienst (angelegt von install.sh; systemd: redclub-update.path)\n'
+# >>> DIENST
+  { printf '#!/usr/bin/env bash\n'
     printf 'DIR=%q\nDATEN=%q\nQUELLE=%q\n' "$PWD" "$daten" "$QUELLE"
-    declare -f ws_info sicher_ordner ablegen log_oeffnen auftrags_ordner   # dieselben Fassungen wie in install.sh
+    declare -f ws_info sicher_ordner ablegen log_oeffnen auftrags_ordner
     cat <<'SKRIPT'
-# RedClub — Update-Dienst (Stand 5). install.sh schreibt diese Datei nach /usr/local/bin/redclub-update und setzt
-# davor DIR (Installationsordner), DATEN (Daten-Volume der App auf dem Server) und QUELLE (Download-Adresse).
-#
-# Die App legt Auftraege als JSON in $DATEN/.anfragen/ ab (alte Apps: eine Datei $DATEN/.update-anfrage).
-# Jeder Auftrag hat eine id; das Ergebnis steht danach in $DATEN/.status/<id>.json (dazu fuer alte Apps die
-# bisherigen Sammeldateien .update-status, .tunnel-status, .website-status).
-# Es gibt nur die festen Aktionen unten — der Dienst fuehrt nie Befehle aus der Anfrage aus.
-# ws_info (Webserver-Erkennung) und die Schreib-Helfer sicher_ordner/ablegen/log_oeffnen/auftrags_ordner setzt
-# install.sh davor (aus seiner eigenen Fassung, siehe einbetten.py).
-# Der Datenordner gehoert dem App-Nutzer (Container), dieser Dienst laeuft als root: dort NIE durch einen Pfad
-# schreiben, lesen oder chown/chmod-en, unter dem die App einen Link untergeschoben haben koennte.
 set -uo pipefail
 umask 022
-# cron (z. B. Unraid) startet mit sehr kurzem PATH
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
 for f in sicher_ordner ablegen log_oeffnen auftrags_ordner; do
   declare -F "$f" >/dev/null || { echo "redclub-update: $f fehlt — install.sh --dienst erneut ausfuehren" >&2; exit 1; }
 done
-# die App (uid 1000) muss Auftraege ablegen und Status lesen koennen
 auftrags_ordner "$DATEN"
-# Nichts zu tun (cron/Zeitgeber schauen jede Minute nach): sofort fertig, ohne auf die Sperre zu warten
 [ -n "$(ls -A "$DATEN/.anfragen" 2>/dev/null)" ] || [ -f "$DATEN/.update-anfrage" ] || [ -L "$DATEN/.update-anfrage" ] || exit 0
-# Immer nur ein Lauf (systemd-Ausloeser + Zeitgeber/cron koennen sich ueberschneiden): der zweite wartet
 if command -v flock >/dev/null 2>&1; then exec 9>/run/redclub-update.lock 2>/dev/null || exec 9>/tmp/redclub-update.lock; flock -w 3600 9 || exit 0; fi
-# Uebrig gebliebene Teil-Dateien (App beim Schreiben abgestuerzt) halten den Ordner sonst ewig „nicht leer“ —
-# systemd startet den Dienst dann im Kreis, bis er die Ueberwachung abschaltet und kein Auftrag mehr ankommt
 find "$DATEN/.anfragen" -mindepth 1 -maxdepth 1 ! -name '*.json' -mmin +2 -delete 2>/dev/null
-# Hat systemd die Ueberwachung schon abgeschaltet (zu viele Starts), wieder einschalten
 if command -v systemctl >/dev/null 2>&1 && systemctl is-failed -q redclub-update.path 2>/dev/null; then systemctl reset-failed redclub-update.path redclub-update.service 2>/dev/null; systemctl start redclub-update.path 2>/dev/null; fi
-# Docker-Befehle duerfen nicht ewig haengen (Image-Download ohne Netz o. Ae.): nach 20 Minuten abbrechen.
-# Laeuft ein Auftrag (LOG gesetzt), geht die Ausgabe zusaetzlich live ins Protokoll .status/<id>.log — das Panel zeigt es an.
 LOG=""
 _docker() { if command -v timeout >/dev/null 2>&1; then timeout 1200 docker "$@"; else command docker "$@"; fi; }
 docker() { if [ -n "$LOG" ]; then _docker "$@" 2>&1 | tee -a "$LOG"; return "${PIPESTATUS[0]}"; fi; _docker "$@"; }
 notiz() { [ -n "$LOG" ] && printf '==> %s\n' "$1" >> "$LOG"; return 0; }
 
-# Status-Dateien schreibt ablegen (eingebettet aus install.sh): neue Datei mit O_EXCL im geprueften Ordner + umbenennen
 feld() { sed -n "s#.*\"$1\":\"\\([$2]*\\)\".*#\\1#p" "$3" | head -1; }
-schreib() { # schreib <id> <alte Sammeldatei> <status> <meldung>
+schreib() {
   local z m; z=$(date -Is); m=$(printf '%s' "$4" | tr '\n"\\' '   ' | cut -c1-600)
   case "$3" in fertig) notiz "Fertig${m:+ ($m)}" ;; fehler) notiz "Fehler: $m" ;; esac
   [ -n "$1" ] && printf '{"id":"%s","status":"%s","zeit":"%s","meldung":"%s"}\n' "$1" "$3" "$z" "$m" | ablegen "$DATEN/.status/$1.json"
@@ -406,14 +325,14 @@ schreib() { # schreib <id> <alte Sammeldatei> <status> <meldung>
 kurz() { printf '%s' "$1" | tail -3 | tr '\n' ' '; }
 env_setzen() { sed -i "/^$1=/d" .env; echo "$1=$2" >> .env; chmod 600 .env; }
 env_lesen() { sed -n "s/^$1=//p" .env | tail -1; }
-profil() { # profil an|aus name — Profil in COMPOSE_PROFILES
+profil() {
   local n="$2" p; p=$(env_lesen COMPOSE_PROFILES | tr ',' ' ')
   p=$(echo " $p " | sed "s/ $n / /g" | xargs)
   [ "$1" = "an" ] && p=$(echo "$p $n" | xargs)
   sed -i '/^COMPOSE_PROFILES=/d' .env
   [ -z "$p" ] || echo "COMPOSE_PROFILES=$(echo "$p" | tr ' ' ',')" >> .env
 }
-datei_an() { # datei_an an|aus compose.x.yml — Zusatzdatei in COMPOSE_FILE
+datei_an() {
   local f; f=$(env_lesen COMPOSE_FILE); [ -n "$f" ] || f="docker-compose.yml"
   f=$(echo ":$f:" | sed "s/:$2:/:/g; s/^://; s/:$//")
   [ "$1" = "an" ] && f="$f:$2"
@@ -423,12 +342,11 @@ holen() { [ -f "$1" ] || curl -fsSL --max-time 30 -o "$1" "$QUELLE/$1?t=$(date +
 geheim() { head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; }
 DOMAIN_RE='^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$'
 
-# Webserver auf dem Host (nur Port-Modus): nginx oder Apache
 ws_finden() {
   WS=""; if command -v nginx >/dev/null 2>&1; then WS=nginx; elif command -v apache2ctl >/dev/null 2>&1; then WS=apache2; elif command -v httpd >/dev/null 2>&1; then WS=httpd; fi
 }
 neuladen() { case "$WS" in nginx) nginx -t >/dev/null 2>&1 && { systemctl reload nginx 2>/dev/null || nginx -s reload 2>/dev/null || systemctl start nginx 2>/dev/null || nginx || pkill -HUP -o -x nginx; } ;; apache2) apache2ctl configtest >/dev/null 2>&1 && { systemctl reload apache2 2>/dev/null || apache2ctl graceful; } ;; *) httpd -t >/dev/null 2>&1 && { systemctl reload httpd 2>/dev/null || httpd -k graceful; } ;; esac; }
-ws_datei() { # ws_datei <name> → DATEI/LINK
+ws_datei() {
   LINK=""
   case "$WS" in
     nginx) if [ -d /etc/nginx/sites-enabled ]; then DATEI=/etc/nginx/sites-available/$1.conf; LINK=/etc/nginx/sites-enabled/$1.conf; else DATEI=/etc/nginx/conf.d/$1.conf; fi ;;
@@ -437,10 +355,8 @@ ws_datei() { # ws_datei <name> → DATEI/LINK
   esac
 }
 
-# domain_an <id> <altdatei> <domain> "<aliase>" <zert: auto|eigen>
 domain_an() {
   local id="$1" alt="$2" dom="$3" alias="$4" zert="$5" port bind name fremd re namen n
-  # Domain und Aliase streng pruefen: daraus entstehen Pfade (/etc/ssl/redclub/<domain>) und Webserver-Eintraege
   for n in $dom $alias; do [[ "$n" =~ $DOMAIN_RE ]] && [ ${#n} -le 253 ] || { schreib "$id" "$alt" fehler "Ungueltige Domain: $n"; return 1; }; done
   port=$(env_lesen RC_PORT); bind=$(env_lesen RC_BIND); [ -n "$bind" ] && [ "$bind" != "0.0.0.0" ] || bind=127.0.0.1
   [ -n "$dom" ] && [ -n "$port" ] || { schreib "$id" "$alt" fehler "Domain oder Port fehlt (laeuft RedClub im Port-Modus?)"; return 1; }
@@ -452,7 +368,6 @@ domain_an() {
     fremd=$(grep -RlsE "(^|[[:space:];{])(server_name|ServerName|ServerAlias)[[:space:]]+([^;#]*[[:space:]])?${re}([[:space:];]|$)" /etc/nginx/sites-enabled /etc/nginx/conf.d /etc/apache2/sites-enabled /etc/httpd/conf.d 2>/dev/null | grep -v 'redclub-' | head -1)
     [ -z "$fremd" ] || { schreib "$id" "$alt" fehler "Fuer $n gibt es schon einen Eintrag ($fremd), den fasse ich nicht an"; return 1; }
   done
-  # alte Datei fuer dieselbe Domain (aeltere Fassung: redclub-website.conf) aufraeumen
   for f in /etc/nginx/sites-available/redclub-website.conf /etc/nginx/conf.d/redclub-website.conf /etc/apache2/sites-available/redclub-website.conf /etc/httpd/conf.d/redclub-website.conf; do
     [ -f "$f" ] && grep -qE "(server_name|ServerName)[[:space:]]+$(printf '%s' "$dom" | sed 's/[.]/[.]/g')" "$f" && { cp -a "$f" "/root/$(basename "$f").bak-$(date +%Y%m%d-%H%M%S)"; [ "$WS" = apache2 ] && a2dissite -q redclub-website.conf >/dev/null 2>&1; rm -f "$f" /etc/nginx/sites-enabled/redclub-website.conf; }
   done
@@ -460,7 +375,6 @@ domain_an() {
   local zp="" kp=""
   if [ "$zert" = "eigen" ]; then
     zp="/etc/ssl/redclub/$dom/cert.pem"; kp="/etc/ssl/redclub/$dom/key.pem"
-    # Zertifikat aus dem Datenordner: erst als Kopie ohne Link-Folgen (cp -P) nach $PRIVAT, nur echte Dateien
     local zq="$DATEN/zertifikate/$dom" zf
     rm -f "$PRIVAT/cert.pem" "$PRIVAT/key.pem"
     if sicher_ordner "$DATEN/zertifikate" && sicher_ordner "$zq"; then
@@ -497,14 +411,12 @@ domain_an() {
   [ "$WS" = "nginx" ] || plugin=apache
   if ! command -v certbot >/dev/null 2>&1; then { apt-get install -y -qq certbot "python3-certbot-$plugin" || dnf install -y -q certbot "python3-certbot-$plugin"; } >/dev/null 2>&1; fi
   for n in $namen; do args="$args -d $n"; done
-  # erst mit allen Namen; zeigt ein Zusatzname (z. B. www) noch nicht hierher, dann nur die Hauptdomain
   if out=$(certbot "--$plugin" $args --cert-name "$dom" --redirect --hsts -n --agree-tos --register-unsafely-without-email 2>&1); then schreib "$id" "$alt" fertig "https"
   elif [ -n "$alias" ] && out=$(certbot "--$plugin" -d "$dom" --cert-name "$dom" --redirect --hsts -n --agree-tos --register-unsafely-without-email 2>&1); then schreib "$id" "$alt" fertig "https-ohne-alias"
   else schreib "$id" "$alt" fehler "Virtual Host steht, aber das Zertifikat fehlt (zeigt der DNS-Eintrag auf diesen Server?): $(kurz "$out")"; fi
 }
 domain_aus() {
   local id="$1" alt="$2" dom="$3"
-  # „..“ o. Ae. hiesse unten rm -rf /etc/ssl — nur echte Domains
   [[ "$dom" =~ $DOMAIN_RE ]] && [ ${#dom} -le 253 ] || { schreib "$id" "$alt" fehler "Ungueltige Domain: $dom"; return 1; }
   ws_finden; [ -n "$WS" ] || { schreib "$id" "$alt" fertig "entfernt"; return 0; }
   ws_datei "redclub-$dom"
@@ -519,18 +431,15 @@ domain_aus() {
   if neuladen; then schreib "$id" "$alt" fertig "entfernt"; else schreib "$id" "$alt" fehler "Konfigtest des Webservers schlaegt fehl"; fi
 }
 
-bearbeiten() { # bearbeiten <anfrage-datei>
+bearbeiten() {
   local f="$1" id aktion tok dom alias php zert schalter port art out
   id=$(feld id 'a-z0-9-' "$f"); aktion=$(feld aktion 'a-z-' "$f"); tok=$(feld token 'A-Za-z0-9+/=_-' "$f")
   dom=$(feld domain 'a-z0-9.-' "$f"); alias=$(feld aliase 'a-z0-9. -' "$f"); php=$(feld php '0-9.' "$f"); zert=$(feld zert 'a-z' "$f"); schalter=$(feld schalter 'a-z' "$f"); port=$(feld port '0-9' "$f")
   art=$(feld art 'a-z' "$f")
-  # Ohne Aktion gilt „update“ nur fuer die Datei alter Apps — sonst ist der Auftrag kaputt
   if [ -z "$aktion" ] && [ "$(basename "$f")" != "0-alt.json" ]; then rm -f "$f"; schreib "$id" "" fehler "Auftrag ohne gueltige Aktion"; return 1; fi
   rm -f "$f"
-  # Live-Protokoll dieses Auftrags (die App liest es mit, solange er laeuft)
   LOG=""
   if [ -n "$id" ]; then
-    # frisch angelegt und in einem Schritt auf Kanal 8 geoeffnet (O_EXCL) — geschrieben/gelesen nur noch ueber den Kanal
     log_oeffnen "$DATEN/.status/$id.log" 8 && LOG=/dev/fd/8
     notiz "$(date '+%H:%M:%S') Auftrag ${aktion:-update} gestartet"
   fi
@@ -560,16 +469,13 @@ bearbeiten() { # bearbeiten <anfrage-datei>
       docker compose stop web web82 web83 web84 web85 phpdb >/dev/null 2>&1; docker compose rm -f web web82 web83 web84 web85 phpdb >/dev/null 2>&1
       for p in php82 php83 php84 php85; do profil aus "$p"; done
       datei_an aus compose.hosting.yml; datei_an aus compose.sftp.yml; datei_an aus compose.phpdb.yml
-      # Daten (Volumes www, phpdb) bleiben erhalten
       if out=$(docker compose up -d app 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
     php-version)
       schreib "$id" "" laeuft ""
       case "$php" in 8.2|8.3|8.4|8.5) ;; *) schreib "$id" "" fehler "Unbekannte PHP-Version $php"; return 1 ;; esac
       env_setzen RC_PHP_VERSION "$php"
-      # die App muss die neue Standard-Version kennen (Weiterleitung der Seiten) — also beide neu starten
       if out=$(docker compose pull --ignore-pull-failures web 2>&1 && docker compose up -d web app 2>&1); then schreib "$id" "" fertig "$php"; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
     php-zusatz)
-      # weitere PHP-Version je Seite (2.0): Container web82 … web85 ueber das Profil php82 … php85 ein- oder ausschalten
       schreib "$id" "" laeuft ""
       case "$php" in 8.2|8.3|8.4|8.5) ;; *) schreib "$id" "" fehler "Unbekannte PHP-Version $php"; return 1 ;; esac
       local nr="${php/./}"
@@ -585,40 +491,32 @@ bearbeiten() { # bearbeiten <anfrage-datei>
       if [ "$aktion" = "sftp-an" ]; then holen compose.sftp.yml || { schreib "$id" "" fehler "compose.sftp.yml liess sich nicht laden"; return 1; }; datei_an an compose.sftp.yml; else datei_an aus compose.sftp.yml; fi
       if out=$(docker compose up -d app 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
     phpdb-fern)
-      # Fernzugriff auf die Hosting-MariaDB: Port veroeffentlichen (compose.phpdb.yml) oder wieder schliessen
       schreib "$id" "" laeuft ""
       if [ "$schalter" = an ]; then
-        # (alle Felder liest der Kopf oben — die Auftragsdatei ist hier schon geloescht)
         [ -n "$port" ] && [ "$port" -ge 1024 ] && [ "$port" -le 65535 ] || port=3306
         holen compose.phpdb.yml || { schreib "$id" "" fehler "compose.phpdb.yml liess sich nicht laden"; return 1; }
         env_setzen RC_PHPDB_FERN_PORT "$port"; datei_an an compose.phpdb.yml
       elif [ "$schalter" = aus ]; then datei_an aus compose.phpdb.yml
       else schreib "$id" "" fehler "schalter fehlt"; return 1; fi
-      # --wait: erst „fertig“ melden, wenn MariaDB wieder antwortet (aeltere Compose-Fassungen kennen es nicht)
       phpdb_hoch() { local o; if o=$(docker compose up -d --wait --wait-timeout 120 phpdb 2>&1); then return 0; fi
         if printf '%s' "$o" | grep -qi 'unknown flag'; then o=$(docker compose up -d phpdb 2>&1) && return 0; fi
         printf '%s' "$o"; return 1; }
       if out=$(phpdb_hoch); then schreib "$id" "" fertig "$schalter"
       else
-        # z. B. Port schon belegt: MariaDB darf dadurch nicht ausfallen — Freigabe zuruecknehmen und ohne Port neu starten
         datei_an aus compose.phpdb.yml; phpdb_hoch >/dev/null 2>&1
         if printf '%s' "$out" | grep -qi 'address already in use\|port is already allocated'; then out="Port $port ist auf dem Server schon belegt — bitte einen anderen waehlen"; fi
         schreib "$id" "" fehler "$(kurz "$out")"
       fi ;;
     webserver-info)
-      # Assistent: welcher Webserver ist da, sind Port 80/443 frei, laesst sich einer installieren?
       declare -F ws_info >/dev/null || { schreib "$id" "" fehler "ws_info fehlt im Dienst (install.sh --dienst erneut ausfuehren)"; return 1; }
       if ws_info | ablegen "$DATEN/.webserver-info"; then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "Datenordner nicht beschreibbar"; fi ;;
     webserver)
-      # Assistent (nur Port-Modus): Webserver (falls keiner da) + Virtual Host + HTTPS mit install.sh --nur-vhost —
-      # dieselben Funktionen wie bei der Installation. Art und Domain hier noch einmal streng pruefen (Whitelist / Regex).
       local re='^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$' skript rc letzte
       schreib "$id" "" laeuft ""
       [ -n "$LOG" ] || { schreib "$id" "" fehler "Auftrag ohne id"; return 1; }
       case "$art" in nginx|apache) ;; *) schreib "$id" "" fehler "Unbekannter Webserver (nur nginx oder apache)"; return 1 ;; esac
       if [ -z "$dom" ] || [ ${#dom} -gt 253 ] || ! [[ "$dom" =~ $re ]]; then schreib "$id" "" fehler "Ungueltige Domain"; return 1; fi
       grep -q 'compose.port.yml' .env 2>/dev/null || { schreib "$id" "" fehler "Nur im Port-Modus (ohne eigenen Caddy) moeglich"; return 1; }
-      # Kanal 8 (Protokoll) und 9 (Dienst-Sperre) nicht vererben: ein ohne systemd gestarteter Webserver hielte sie sonst fuer immer
       skript=$(mktemp)
       if ! { curl -fsSL --max-time 30 -o "$skript" "$QUELLE/install.sh?t=$(date +%s)" 2>/dev/null && bash -n "$skript" 2>/dev/null && grep -q -- '--nur-vhost' "$skript"; }; then
         if [ -f "$DIR/install.sh" ] && grep -q -- '--nur-vhost' "$DIR/install.sh"; then cp -f "$DIR/install.sh" "$skript"
@@ -628,7 +526,6 @@ bearbeiten() { # bearbeiten <anfrage-datei>
       rm -f "$skript"
       letzte=$(grep -E "$([ "$rc" = 3 ] && echo 'HTTPS|certbot' || echo 'FEHLER|ERROR')" "$LOG" | tail -1 | sed 's/^[^A-Za-z]*//' | tr -d '\000-\010\013-\037' | cut -c1-300)
       ws_info | ablegen "$DATEN/.webserver-info"
-      # meldung: „https“ = alles fertig; „http: …“ = Virtual Host steht, Zertifikat noch nicht
       case "$rc" in
         0) schreib "$id" "" fertig "https" ;;
         3) schreib "$id" "" fertig "http: $letzte" ;;
@@ -639,31 +536,25 @@ bearbeiten() { # bearbeiten <anfrage-datei>
       if out=$(docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile 2>&1); then schreib "$id" "" fertig ""; else schreib "$id" "" fehler "$(kurz "$out")"; fi ;;
     *)
       schreib "$id" .update-status laeuft ""
-      # Erst das neueste update.sh holen: es bringt Dateien, Images und diesen Dienst selbst auf den neuesten Stand
+      if [ -f .paket ]; then schreib "$id" .update-status fehler "Diese Installation stammt aus einem Paket. Bitte das neue Paket einspielen (siehe LIESMICH.txt). / This installation comes from a package. Please deploy the new package (see LIESMICH.txt)."; return; fi
       local neu; neu=$(mktemp)
       if curl -fsSL --max-time 30 -o "$neu" "$QUELLE/update.sh?t=$(date +%s)" 2>/dev/null && bash -n "$neu" 2>/dev/null; then
         [ -n "$id" ] && export RC_STATUS_ID="$id"
-        # das Protokoll dieses Auftrags ist schon offen: update.sh schreibt ueber denselben Kanal weiter
         [ -n "$LOG" ] && export RC_LOG_FD=8
         rm -rf "$PRIVAT"
         RC_QUELLE="$QUELLE" exec bash "$neu" --dir "$DIR" --status "$DATEN/.update-status"
       fi
       rm -f "$neu"
-      # GitHub nicht erreichbar: nur die Images
       local dienste="app"; grep -q '^COMPOSE_PROFILES=.*tunnel' .env && dienste="$dienste cloudflared"; grep -q 'compose.hosting.yml' .env && dienste="$dienste web phpdb"
       if out=$(docker compose pull $dienste 2>&1 && docker compose up -d $dienste 2>&1); then schreib "$id" .update-status fertig ""
       else schreib "$id" .update-status fehler "$(kurz "$out")"; fi ;;
   esac
 }
 
-# Alte Apps legen genau eine Datei ab, neue einen Ordner voller Auftraege — beides der Reihe nach abarbeiten.
-# Jeder Auftrag wird zuerst in einen Ordner von root verschoben (mv folgt keinem Link) und nur von dort gelesen;
-# Links und alles, was keine Datei ist, werden verworfen. .anfragen/ wird nur betreten, wenn es wirklich der
-# Ordner im Datenordner ist (nicht ein untergeschobener Link) — sonst koennte mv fremde Dateien wegnehmen.
 PRIVAT=$(mktemp -d) || exit 1
 trap 'rm -rf "$PRIVAT"' EXIT
 DATEN_P=$(cd -P "$DATEN" 2>/dev/null && pwd) || exit 1
-uebernehmen() { # uebernehmen <quelle> <name> — nach $PRIVAT/<name>; 1 = verworfen
+uebernehmen() {
   mv -f "$1" "$PRIVAT/$2" 2>/dev/null || return 1
   if [ -L "$PRIVAT/$2" ] || [ ! -f "$PRIVAT/$2" ]; then rm -rf "${PRIVAT:?}/$2"; return 1; fi
 }
@@ -673,41 +564,29 @@ for n in $namen; do
   ( cd -P "$DATEN/.anfragen" 2>/dev/null && [ "$(pwd)" = "$DATEN_P/.anfragen" ] && { [ -e "$n" ] || [ -L "$n" ]; } && uebernehmen "$n" "$n" ) || continue
   bearbeiten "$PRIVAT/$n"
 done
-# Liegt nur noch eine frische Teil-Datei da (App schreibt gerade), nicht sofort im Kreis neu starten
 [ -n "$(ls -A "$DATEN/.anfragen" 2>/dev/null)" ] && sleep 5
-# Status-Dateien aelter als 7 Tage weg
 find "$DATEN/.status" -name '*.json' -mtime +7 -delete 2>/dev/null
 exit 0
 SKRIPT
   } > /usr/local/bin/redclub-update.neu
 # <<< DIENST
-  # erst fertig schreiben, dann umbenennen: ein gerade laufender Dienst liest so seine alte Fassung zu Ende
   chmod 755 /usr/local/bin/redclub-update.neu && mv -f /usr/local/bin/redclub-update.neu /usr/local/bin/redclub-update
   local ausloeser=""
   if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
     auftrags_ordner "$daten"
     printf '%s\n' "[Unit]" "Description=RedClub: Auftrag aus dem Panel" "[Path]" "PathExists=$daten/.update-anfrage" "DirectoryNotEmpty=$daten/.anfragen" "[Install]" "WantedBy=multi-user.target" > /etc/systemd/system/redclub-update.path
-    # StartLimitIntervalSec=0: viele Auftraege kurz hintereinander duerfen die Ueberwachung nie abschalten
     printf '%s\n' "[Unit]" "Description=RedClub aktualisieren" "StartLimitIntervalSec=0" "ConditionDirectoryNotEmpty=|$daten/.anfragen" "ConditionPathExists=|$daten/.update-anfrage" "[Service]" "Type=oneshot" "ExecStart=/usr/local/bin/redclub-update" > /etc/systemd/system/redclub-update.service
-    # Rueckfallebene: jede Minute nachsehen, falls die Pfad-Ueberwachung doch einmal ausfaellt
     printf '%s\n' "[Unit]" "Description=RedClub: Auftraege nachsehen" "[Timer]" "OnBootSec=1min" "OnUnitInactiveSec=1min" "AccuracySec=10s" "[Install]" "WantedBy=timers.target" > /etc/systemd/system/redclub-update.timer
     if systemctl daemon-reload && systemctl enable --now redclub-update.path >/dev/null 2>&1; then ausloeser="systemd"; rm -f /etc/cron.d/redclub-update; systemctl reset-failed redclub-update.path redclub-update.service >/dev/null 2>&1; systemctl restart redclub-update.path >/dev/null 2>&1; systemctl enable --now redclub-update.timer >/dev/null 2>&1; fi
   fi
-  # Unraid: kein systemd, /etc und /usr/local liegen im Arbeitsspeicher (nach dem Neustart weg), und cron liest
-  # /etc/cron.d als Crontabs je Benutzer (Datei „root“, ohne Benutzerfeld) — eine eigene Datei dort laeuft nie.
-  # update_cron baut die root-Crontab aus /boot/config/plugins/dynamix/*.cron (+ Ordner installierter Plugins mit .plg)
-  # — bei jedem Start und jeder Zeitplan-Aenderung. Darum: Dienst auf den USB-Stick, Zeitplan nach dynamix/.
   if [ -z "$ausloeser" ] && [ -f /etc/unraid-version ] && [ -d /boot/config ]; then
     mkdir -p /boot/config/plugins/redclub /boot/config/plugins/dynamix
     cp -f /usr/local/bin/redclub-update /boot/config/plugins/redclub/redclub-update
     local zeile="* * * * * bash /boot/config/plugins/redclub/redclub-update >/dev/null 2>&1"
     printf '%s\n' "# RedClub: Auftraege aus dem Panel (angelegt von install.sh)" "$zeile" "" > /boot/config/plugins/dynamix/redclub-update.cron
     rm -f /etc/cron.d/redclub-update /boot/config/plugins/redclub/redclub.cron
-    # steht der Eintrag in der Crontab, die Unraid-cron liest? (ohne Pipe: install.sh laeuft mit pipefail)
     rc_cron_drin() { local alle; alle="$(cat /etc/cron.d/root 2>/dev/null || true)"; case "$alle" in *plugins/redclub/redclub-update*) return 0 ;; esac; return 1; }
-    # 1. Unraid-Weg
     if [ -x /usr/local/sbin/update_cron ]; then /usr/local/sbin/update_cron >/dev/null 2>&1 || true; fi
-    # 2. update_cron fehlt oder liest dynamix/ nicht: direkt in die root-Crontab und cron neu laden lassen
     if ! rc_cron_drin && [ -d /etc/cron.d ]; then
       { cat /etc/cron.d/root 2>/dev/null || true; echo "$zeile"; } > /tmp/redclub-cron.$$ && cat /tmp/redclub-cron.$$ > /etc/cron.d/root
       rm -f /tmp/redclub-cron.$$; crontab /etc/cron.d/root -c /etc/cron.d >/dev/null 2>&1 || true
@@ -718,7 +597,6 @@ SKRIPT
       return 1
     fi
   fi
-  # Ohne systemd (z. B. Container-Server, Alpine): cron schaut jede Minute nach einer Anfrage
   if [ -z "$ausloeser" ] && [ -d /etc/cron.d ] && { pgrep -x cron >/dev/null 2>&1 || pgrep -x crond >/dev/null 2>&1; }; then
     printf '%s\n' "# RedClub: Auftrag aus dem Panel (angelegt von install.sh, ohne systemd)" "* * * * * root /usr/local/bin/redclub-update >/dev/null 2>&1" > /etc/cron.d/redclub-update
     chmod 644 /etc/cron.d/redclub-update; ausloeser="cron"
@@ -726,19 +604,13 @@ SKRIPT
   [ -n "$ausloeser" ] || { DIENST_GRUND="$(s "Weder systemd noch cron laufen auf diesem Server – ohne einen davon kann der Knopf im Panel nichts ausloesen." "Neither systemd nor cron is running on this server – without one the panel button cannot trigger anything.")"; return 1; }
   printf '%s\naktionen=update tunnel website domain hosting php sftp caddy zert anfragen phpzusatz phpdbfern webserver\nstand=5\n' "$PWD" | ablegen "$daten/.updater" \
     || { DIENST_GRUND="$(s "Die Marker-Datei .updater liess sich im Datenordner nicht anlegen ($daten)." "The marker file .updater could not be created in the data folder ($daten).")"; return 1; }
-  # gleich einmal fuer den Assistenten festhalten, welcher Webserver da ist (spaeter frisch per Aktion „webserver-info“)
   { ws_info | ablegen "$daten/.webserver-info"; } 2>/dev/null || true
   say "==> Update-Dienst eingerichtet ($ausloeser; Panel → Version unten links → „Jetzt aktualisieren“)" "==> Update service set up ($ausloeser; panel → version at the bottom left → “Update now”)"
 }
 
 
-# 6. Virtual Host fuer die Domain in deinem Webserver (nur im Port-Modus, nur mit Domain).
-#    Als Funktion: laeuft auch nach der Einrichtung ueber den Kurzzeit-Link (Schritt 9) mit der dort gewaehlten Domain.
-# Webserver selbst einrichten: Kein nginx/Apache auf dem Server (Port-Modus mit Domain) — auf Wunsch einen installieren
-#   (Frage: 1 nginx, 2 Apache, 3 keinen; oder --webserver nginx|apache). Danach geht es unten im normalen Weg weiter:
-#   Virtual Host anlegen, Konfigtest, Neuladen, Zertifikat per certbot. Ohne Terminal und ohne Schalter: nur die Vorlage.
 ws_neu=""
-ws_paket() { # ws_paket <paket …> — ueber apt-get bzw. dnf/yum installieren; Ausgabe ins Protokoll, solange ein Spinner
+ws_paket() {
   local log pid n=0 rc=0 txt
   txt="$(s "Installiere" "Installing") $*"
   log=$(mktemp "/tmp/redclub-pakete.XXXXXX") || return 1
@@ -761,7 +633,7 @@ ws_paket() { # ws_paket <paket …> — ueber apt-get bzw. dnf/yum installieren;
   rm -f "$log"
   return "$rc"
 }
-ws_starten() { # ws_starten nginx|apache2|httpd — einschalten (startet mit dem Server) und starten; ohne systemd direkt
+ws_starten() {
   if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
     systemctl enable "$1" >/dev/null 2>&1 || true
     systemctl restart "$1" >/dev/null 2>&1 || return 1
@@ -769,13 +641,12 @@ ws_starten() { # ws_starten nginx|apache2|httpd — einschalten (startet mit dem
     case "$1" in
       nginx) nginx -s reload >/dev/null 2>&1 || nginx || return 1 ;;
       apache2) apache2ctl start >/dev/null 2>&1 || return 1 ;;
-      # RHEL & Co.: das Platzhalter-Zertifikat von mod_ssl legt sonst httpd-init.service (systemd) an
       httpd) if [ ! -s /etc/pki/tls/certs/localhost.crt ] && [ -x /usr/libexec/httpd-ssl-gencerts ]; then /usr/libexec/httpd-ssl-gencerts >/dev/null 2>&1 || true; fi
         httpd -k start >/dev/null 2>&1 || return 1 ;;
     esac
   fi
 }
-ws_anbieten() { # fragen (oder --webserver), installieren, starten — setzt webserver und ws_neu; Rueckgabe 1 = Vorlage
+ws_anbieten() {
   local wahl="$WS_WAHL" dienst wer=""
   local -a pakete
   case "$wahl" in keiner|none) return 1 ;; esac
@@ -783,14 +654,13 @@ ws_anbieten() { # fragen (oder --webserver), installieren, starten — setzt web
     [ -z "$wahl" ] || say "    $wahl laesst sich hier nicht installieren (weder apt-get noch dnf/yum gefunden)." "    $wahl cannot be installed here (neither apt-get nor dnf/yum found)."
     return 1
   fi
-  # Port 80/443 belegt (anderer Proxy, Container …): ein zusaetzlicher Webserver kaeme nicht an die Ports
   if belegt 80 || belegt 443; then
     wer=$(wer_lauscht 80 || true); [ -n "$wer" ] || wer=$(wer_lauscht 443 || true)
     say "==> Kein nginx/Apache gefunden, aber Port 80/443 ist belegt (${wer:-unbekannter Dienst}) — einen Webserver installiere ich daneben nicht." "==> No nginx/Apache found, but port 80/443 is in use (${wer:-unknown service}) — I will not install a web server next to it."
     return 1
   fi
   if [ -z "$wahl" ]; then
-    [ -t 0 ] || return 1   # ohne Terminal (curl | bash ohne Bildschirm) und ohne --webserver: Vorlage wie bisher
+    [ -t 0 ] || return 1
     echo ""
     say "==> Auf diesem Server laeuft weder nginx noch Apache." "==> Neither nginx nor Apache is installed on this server."
     say "    Ich kann einen installieren, den Virtual Host fuer $DOMAIN anlegen und HTTPS per certbot holen." "    I can install one, create the virtual host for $DOMAIN and get HTTPS via certbot."
@@ -805,13 +675,11 @@ ws_anbieten() { # fragen (oder --webserver), installieren, starten — setzt web
   if [ "${RC_DRY_RUN:-}" = "1" ]; then tu ws_paket "${pakete[@]}"; webserver="$dienst"; ws_neu="ja"; return 0; fi
   ws_paket "${pakete[@]}" || return 1
   if [ "$dienst" = "apache2" ]; then a2enmod -q proxy proxy_http headers rewrite >/dev/null 2>&1 || true; fi
-  # RHEL & Co.: SELinux verbietet dem Webserver sonst die Verbindung zur App auf 127.0.0.1 (502)
   if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce 2>/dev/null)" = "Enforcing" ]; then setsebool -P httpd_can_network_connect 1 >/dev/null 2>&1 || true; fi
   if ! ws_starten "$dienst"; then
     say "    FEHLER: $dienst ist installiert, startet aber nicht (systemctl status $dienst)." "    ERROR: $dienst is installed but does not start (systemctl status $dienst)."
     return 1
   fi
-  # Firewall: nur 80/443 fuer den Webserver oeffnen — der Port der App bleibt zu (sie hoert nur auf 127.0.0.1)
   if command -v ufw >/dev/null 2>&1; then
     case "$(ufw status 2>/dev/null || true)" in *"Status: active"*)
       ufw allow 80/tcp >/dev/null 2>&1 || true; ufw allow 443/tcp >/dev/null 2>&1 || true
@@ -824,13 +692,13 @@ ws_anbieten() { # fragen (oder --webserver), installieren, starten — setzt web
   webserver="$dienst"; ws_neu="ja"
   say "==> $dienst laeuft und startet kuenftig mit dem Server." "==> $dienst is running and will start with the server."
 }
-certbot_installieren() { # certbot_installieren nginx|apache — certbot + Plugin aus der Paketverwaltung (RHEL & Co.: aus EPEL)
+certbot_installieren() {
   if ! command -v apt-get >/dev/null 2>&1 && [ -f /etc/redhat-release ] && ! grep -qi fedora /etc/redhat-release && ! rpm -q epel-release >/dev/null 2>&1; then
     tu ws_paket epel-release || true
   fi
   tu ws_paket certbot "python3-certbot-$1"
 }
-hsts_sichern() { # der HTTPS-Eintrag (von certbot ergaenzt bzw. angelegt) muss HSTS senden — fehlt die Zeile, nachtragen
+hsts_sichern() {
   local f="" z="" muster="" ok=""
   [ "${RC_DRY_RUN:-}" != "1" ] || return 0
   case "$vhost_angelegt" in
@@ -860,10 +728,7 @@ if [ "$MODUS" = "port" ] && [ -n "$DOMAIN" ] && [ "$VHOST" = "ja" ]; then
   elif command -v apache2ctl >/dev/null 2>&1; then webserver="apache2"
   elif command -v httpd >/dev/null 2>&1; then webserver="httpd"
   fi
-  # Gibt es fuer die Domain schon einen fremden Eintrag (z. B. eine alte Vereinsseite)? Dann nichts anfassen — umstellen
-  # ist ein bewusster Schritt (siehe Umzug unten), sonst stritten sich zwei Eintraege um die Domain.
   fremd=$(grep -RlsE "(^|[[:space:];{])(server_name|ServerName|ServerAlias)[[:space:]]+([^;#]*[[:space:]])?${DOMAIN//./\\.}([[:space:];]|$)" /etc/nginx/sites-enabled /etc/nginx/conf.d /etc/apache2/sites-enabled /etc/httpd/conf.d 2>/dev/null | grep -v 'redclub' | head -1 || true)
-  # Zeigt der Eintrag schon auf RedClub (z. B. nach dem Umstellen)? Dann ist alles erledigt.
   if [ -n "$fremd" ] && grep -qE "(proxy_pass|ProxyPass[[:space:]]+/)[[:space:]]+http://(127\.0\.0\.1|localhost):${PORT}(/|;|[[:space:]]|$)" "$fremd"; then
     say "==> $DOMAIN zeigt schon auf RedClub ($fremd)." "==> $DOMAIN already points to RedClub ($fremd)."
     fremd=""; webserver=""; vhost_angelegt="vorhanden"; https_ok=1
@@ -872,7 +737,6 @@ if [ "$MODUS" = "port" ] && [ -n "$DOMAIN" ] && [ "$VHOST" = "ja" ]; then
     say "==> Fuer $DOMAIN gibt es schon einen Eintrag: $fremd — den fasse ich nicht an." "==> There is already an entry for $DOMAIN: $fremd — I will not touch it."
     webserver=""
   fi
-  # Kein nginx/Apache da: auf Wunsch einen installieren (setzt webserver) — danach weiter wie mit vorhandenem Webserver
   if [ -z "$webserver" ] && [ -z "$fremd" ] && [ "$vhost_angelegt" != "vorhanden" ]; then ws_anbieten || true; fi
   if [ -n "$webserver" ] && { [ -n "$ws_neu" ] || ja "==> $(s "Virtual Host fuer $DOMAIN in $webserver anlegen (Backup vorhandener Dateien, Konfigtest, Neuladen)?" "Create a virtual host for $DOMAIN in $webserver (backup of existing files, config test, reload)?")" "j"; }; then
     stempel=$(date +%Y%m%d-%H%M%S)
@@ -928,13 +792,11 @@ server {
     if ! belegt 80 && ! belegt 443; then say "    Oder alles automatisch (Webserver, Virtual Host, HTTPS):  sudo bash install.sh --webserver nginx  (bzw. apache)" "    Or everything automatically (web server, virtual host, HTTPS):  sudo bash install.sh --webserver nginx  (or apache)"; fi
   fi
 
-  # 7. Zertifikat per certbot (HTTP-01 ueber den gerade angelegten Virtual Host)
   if [ -n "$vhost_angelegt" ] && [ "$vhost_angelegt" != "vorhanden" ]; then
     plugin="nginx"; [ "$vhost_angelegt" = "nginx" ] || plugin="apache"
     meine_ip=$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || true)
     domain_ip=$(getent ahostsv4 "$DOMAIN" 2>/dev/null | awk '{print $1; exit}' || true)
     if [ -n "$meine_ip" ] && [ "$domain_ip" != "$meine_ip" ]; then
-      # selbst installierter Webserver: certbot schon mitbringen — spaeter reicht dann der eine Befehl unten
       if [ -n "$ws_neu" ] && ! command -v certbot >/dev/null 2>&1; then certbot_installieren "$plugin" || true; fi
       say "==> $DOMAIN zeigt auf '${domain_ip:-nichts}', dieser Server hat $meine_ip — Zertifikat spaeter holen:" "==> $DOMAIN points to '${domain_ip:-nothing}', this server has $meine_ip — get the certificate later:"
       echo "    certbot --$plugin -d $DOMAIN --redirect"
@@ -953,8 +815,6 @@ server {
   fi
 fi
 }
-# ws_info — JSON fuer den Einrichtungs-Assistenten: vorhandener Webserver, Port 80/443, Paketverwaltung, certbot, Weg
-#   nach aussen. Steht auch woertlich im Update-Dienst (einbetten.py: declare -f, Aktion „webserver-info“) — nur EINE Fassung.
 ws_info() {
   local ws="" frei=true wer="" paket=false cb=false modus=caddy p
   if command -v nginx >/dev/null 2>&1; then ws="nginx"
@@ -976,16 +836,12 @@ ws_info() {
   printf '{"zeit":"%s","modus":"%s","webserver":"%s","portsFrei":%s,"belegtVon":"%s","paketverwaltung":%s,"certbot":%s}\n' "$(date -Is)" "$modus" "$ws" "$frei" "$wer" "$paket" "$cb"
 }
 
-# Nur den Update-Dienst neu einrichten (update.sh ruft das nach jedem Update auf) — ohne Fragen, sonst bleibt alles
 if [ -n "$NUR_DIENST" ]; then
   updater_einrichten || { say "FEHLER: Update-Dienst nicht eingerichtet: $DIENST_GRUND" "ERROR: update service not set up: $DIENST_GRUND"; exit 1; }
   exit 0
 fi
 
-# Nur Webserver + Virtual Host + HTTPS (Update-Dienst, Aktion „webserver“ aus dem Einrichtungs-Assistenten) — ohne Fragen,
-# mit denselben Funktionen wie die Installation. Rueckgabe: 0 = mit HTTPS, 3 = Virtual Host steht, HTTPS noch nicht, 1 = Fehler.
 if [ -n "$NUR_VHOST" ]; then
-  # Sperre als PID-Datei (kein flock: ein ohne systemd gestarteter Webserver erbte den Kanal und hielte sie fuer immer)
   v_sperre="$PWD/.webserver.lock"
   if [ -f "$v_sperre" ] && v_pid=$(tr -cd '0-9' < "$v_sperre") && [ -n "$v_pid" ] && kill -0 "$v_pid" 2>/dev/null; then
     say "FEHLER: Es laeuft schon eine Einrichtung des Webservers." "ERROR: A web server setup is already running."; exit 1
@@ -1015,7 +871,6 @@ fi
 
 say "==> RedClub wird eingerichtet" "==> Setting up RedClub"
 
-# 1. Docker (falls noch nicht da)
 if ! command -v docker >/dev/null 2>&1; then
   say "==> Docker wird installiert …" "==> Installing Docker …"
   curl -fsSL https://get.docker.com | sh
@@ -1025,7 +880,6 @@ for f in docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.y
   [ -f "$f" ] || curl -fsSL -o "$f" "$QUELLE/$f" || { say "FEHLER: $f fehlt neben install.sh und konnte nicht geladen werden." "ERROR: $f is missing next to install.sh and could not be downloaded."; exit 1; }
 done
 
-# 2. Bei wenig Arbeitsspeicher eine Auslagerungsdatei anlegen (unter 1,5 GB RAM, noch kein Swap)
 ram_mb=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
 if [ "$ram_mb" -lt 1500 ] && [ "$(swapon --noheadings 2>/dev/null | wc -l)" -eq 0 ] && [ ! -f /swapfile ]; then
   say "==> Nur ${ram_mb} MB RAM: lege 1 GB Auslagerungsdatei an …" "==> Only ${ram_mb} MB RAM: creating a 1 GB swap file …"
@@ -1033,10 +887,6 @@ if [ "$ram_mb" -lt 1500 ] && [ "$(swapon --noheadings 2>/dev/null | wc -l)" -eq 
   grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
 fi
 
-# 3. .env: Datenbank-Passwort nur beim ersten Mal (sonst passt es nicht mehr zur Datenbank)
-# 3a. .env fehlt, aber die Container dieser Installation gibt es noch (z. B. Unraid nach einem Neustart: Ordner im RAM weg,
-#     Docker-Volumes noch da): Datenbank-Passwort von dort — ein neu gewuerfeltes passte nicht mehr zur Datenbank.
-#     Eine NEU angelegte .env wird bei einem Abbruch (Strg+C) vor Schritt 4 wieder entfernt — sonst fehlte spaeter der Weg nach aussen.
 ENV_NEU=0; WEG_FERTIG=0
 if [ ! -f .env ]; then
   env_db=$(docker ps -aq --filter "label=com.docker.compose.project=$(basename "$PWD")" --filter label=com.docker.compose.service=db 2>/dev/null || true)
@@ -1056,11 +906,8 @@ if [ ! -f .env ]; then
   chmod 600 .env
   say "==> .env mit zufaelligem Datenbank-Passwort angelegt" "==> Created .env with a random database password"
 fi
-# Sprache merken — gilt auch fuer den Einrichtungs-Assistenten
 if grep -q '^RC_LANG=' .env; then sed -i "s/^RC_LANG=.*/RC_LANG=$SPR/" .env; else echo "RC_LANG=$SPR" >> .env; fi
 
-# Weg nach aussen sichern: kennt die .env keinen (z. B. nach einer abgebrochenen Einrichtung), wuerde ein Neustart den
-# freigegebenen Port bzw. Caddy verlieren — dann vom laufenden Container uebernehmen, sonst aus der letzten Sicherung.
 weg_retten() {
   WEG_GERETTET=""
   if grep -q '^COMPOSE_FILE=' .env 2>/dev/null; then return 0; fi
@@ -1078,7 +925,6 @@ weg_retten() {
     ip=$(docker inspect -f '{{with index .HostConfig.PortBindings "3000/tcp"}}{{(index . 0).HostIp}}{{end}}' "$c" 2>/dev/null || true)
   fi
   if [ -n "$port" ]; then
-    # leere HostIp heisst: auf allen Adressen (so war es bisher erreichbar)
     printf 'COMPOSE_FILE=docker-compose.yml:compose.port.yml\nRC_PORT=%s\nRC_BIND=%s\n' "$port" "${ip:-0.0.0.0}" >> .env
     WEG_GERETTET="Port ${ip:-0.0.0.0}:$port"; return 0
   fi
@@ -1093,9 +939,7 @@ weg_retten() {
 weg_retten
 [ -n "$WEG_GERETTET" ] && say "==> Die .env kannte keinen Weg nach außen — vom laufenden RedClub übernommen ($WEG_GERETTET)" "==> .env had no way in — taken over from the running RedClub ($WEG_GERETTET)"
 
-# 4. Weg nach aussen festlegen — nur, solange die .env noch keinen kennt
 if ! grep -q '^COMPOSE_FILE=' .env; then
-  # Bestehende Installation mit altem Compose (Caddy stand noch in docker-compose.yml): Caddy behalten.
   if [ -z "$MODUS" ] && docker ps --filter "label=com.docker.compose.service=caddy" --format '{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null | grep -qx "$PWD"; then
     MODUS="caddy"
   fi
@@ -1133,18 +977,15 @@ if ! grep -q '^COMPOSE_FILE=' .env; then
     say "==> Caddy uebernimmt Port 80/443 und holt das Zertifikat selbst" "==> Caddy takes port 80/443 and gets the certificate by itself"
   fi
 fi
-# Werte aus der .env (auch bei einem zweiten Aufruf)
 PORT=$(sed -n 's/^RC_PORT=//p' .env | tail -1)
 [ -n "$DOMAIN" ] || DOMAIN=$(sed -n 's/^RC_PROXY_DOMAIN=//p' .env | tail -1)
 grep -q 'compose.port.yml' .env && MODUS="port" || MODUS="caddy"
-# --domain beim zweiten Aufruf: in der .env nachtragen, damit der Assistent sie vorwaehlt
 if [ "$MODUS" = "port" ] && [ -n "$DOMAIN" ]; then
   [[ "$DOMAIN" =~ ^[a-z0-9.-]+$ ]] || { say "FEHLER: ungueltige Domain: $DOMAIN" "ERROR: invalid domain: $DOMAIN"; exit 1; }
   if grep -q '^RC_PROXY_DOMAIN=' .env; then sed -i "s|^RC_PROXY_DOMAIN=.*|RC_PROXY_DOMAIN=$DOMAIN|" .env; else echo "RC_PROXY_DOMAIN=$DOMAIN" >> .env; fi
 fi
 
 WEG_FERTIG=1
-# 4b. RedDrop (Dateien & Fotos) im selben Compose — nur mit eigenem Caddy, einmalig gefragt
 if [ "$MODUS" = "caddy" ] && ! grep -q '^REDDROP_GEFRAGT=' .env; then
   echo "REDDROP_GEFRAGT=1" >> .env
   echo ""
@@ -1162,11 +1003,6 @@ if [ "$MODUS" = "caddy" ] && ! grep -q '^REDDROP_GEFRAGT=' .env; then
   fi
 fi
 
-# Passt das Datenbank-Passwort der .env nicht mehr zur Datenbank (.env neu angelegt, das Daten-Volume ist aber das
-# alte — etwa nach einem Unraid-Neustart oder einer zweiten Installation), kommt die App nie an ihre Daten (502).
-# Im Datenbank-Container geht der lokale Socket ohne Passwort: darueber das Passwort der .env setzen, Daten bleiben.
-# Geprueft wird ueber die Netz-Adresse des Containers (wie die App) — 127.0.0.1 ist dort ohne Passwort erlaubt.
-# Rueckgabe: 0 = passt, 2 = angeglichen (App neu gestartet), 1 = liess sich nicht angleichen
 db_passwort_angleichen() {
   local i
   [ -n "$(docker compose ps -q db 2>/dev/null)" ] || return 0
@@ -1178,10 +1014,6 @@ db_passwort_angleichen() {
   return 2
 }
 
-# Der eigene Mailserver ist aus RedClub entfernt: compose.mail*.yml aus COMPOSE_FILE nehmen. Den Container beendet danach
-# „docker compose up -d --remove-orphans“ — das entfernt nur den Container, Volumes bleiben stehen (kein -v, kein „down“).
-# Rueckgabe 0 = es gibt etwas zu entfernen (auch: COMPOSE_FILE schon sauber, aber der Container eines abgebrochenen Laufs steht noch).
-# MAIL_VOLUME = Volume mit den Postfaechern. Die Dateien im Ordner bleiben liegen. Gleiche Fassung wie in update.sh.
 mail_ausbauen() {
   local cf neu="" x c proj
   MAIL_VOLUME=""
@@ -1206,8 +1038,7 @@ mail_ausbauen() {
 MAIL_WEG=""; MAIL_UP=""
 if mail_ausbauen; then MAIL_WEG=1; MAIL_UP="--remove-orphans"; fi
 
-# 5. Starten
-if [ -d .output ]; then docker compose up -d --build $MAIL_UP; else docker compose pull && docker compose up -d $MAIL_UP; fi
+if [ -f .paket ]; then docker build -t ghcr.io/theredstonee/redclub:latest . && docker compose up -d $MAIL_UP; elif [ -d .output ]; then docker compose up -d --build $MAIL_UP; else docker compose pull && docker compose up -d $MAIL_UP; fi
 if [ -n "$MAIL_WEG" ]; then
   say "==> Der eigene Mailserver ist entfernt. Die Postfächer bleiben im Volume $MAIL_VOLUME erhalten — gelöscht wurde nichts." "==> The built-in mail server is removed. The mailboxes stay in the volume $MAIL_VOLUME — nothing was deleted."
   say "    Vorsicht: „docker volume prune“ kann nicht mehr benutzte Volumes löschen. Mail selbst hosten: RedPost, https://www.theredstonee.de/redpost/" "    Careful: “docker volume prune” can delete volumes no longer in use. To host mail yourself: RedPost, https://www.theredstonee.de/redpost/"
@@ -1217,21 +1048,16 @@ db_rc=0; db_passwort_angleichen || db_rc=$?
 if [ "$db_rc" = 2 ]; then say "    Das Datenbank-Passwort passte nicht zur .env — angeglichen (Daten bleiben)." "    The database password did not match .env — fixed (data kept)."
 elif [ "$db_rc" = 1 ]; then say "    FEHLER: Das Datenbank-Passwort passt nicht zur .env und liess sich nicht angleichen." "    ERROR: The database password does not match .env and could not be fixed."; fi
 
-# 5b. Update-Dienst einrichten (Funktion steht oben)
 updater_einrichten || say "    Update-Dienst nicht eingerichtet: $DIENST_GRUND" "    Update service not set up: $DIENST_GRUND"
 
-# 6. Virtual Host (Funktionen stehen oben, vor dem --dienst-Block)
 vhost_einrichten
 
-# 8. Auf die App warten und den Setup-Code zeigen
 say "==> Warte auf den Start …" "==> Waiting for the start …"
 for n in $(seq 1 60); do
   if docker compose logs app 2>/dev/null | grep -q 'Setup-Code\|bereit\|ready'; then break; fi
   for k in 0 1 2 3 4 5 6 7; do [ -t 1 ] && printf '\r  %s%s%s %s' "$R" "${SPIN[$(( (n * 8 + k) % ${#SPIN[@]} ))]}" "$N" "$(s "RedClub startet" "RedClub is starting") ($((n * 2)) s)"; sleep 0.25; done
 done
 [ -t 1 ] && printf '\r\033[K'
-# IP fuer Links und Kurzzeit-Eintrag: die oeffentliche nur, wenn sie auf dem Server selbst liegt (VPS).
-# Sonst steht der Server hinter einem Router (Heimnetz) — dann die IP, ueber die er ins Netz geht.
 ip_pub=$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || true)
 ip_lan=$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -1 || true)
 [ -n "$ip_lan" ] || ip_lan=$(hostname -I 2>/dev/null | awk '{print $1}')
@@ -1248,14 +1074,10 @@ else
 fi
 echo ""
 
-# 9. Kurzzeit-Link: Port-Modus ohne Domain → die Einrichtung voruebergehend ueber http://<Server-IP> erlauben.
-#    Ein eigener Eintrag NUR fuer die IP (andere Domains im Webserver bleiben unberuehrt), geschuetzt durch
-#    den Setup-Code; nach der Einrichtung (oder bei Abbruch) wird er wieder entfernt. Wurde im Assistenten
-#    eine Domain eingetragen, bekommt sie danach ihren Virtual Host und das Zertifikat.
 setup_wert() { docker compose exec -T db psql -U redclub -d redclub -tAc "SELECT coalesce(value->>'$2', '') FROM settings WHERE key = '$1'" 2>/dev/null | tr -d '[:space:]'; }
 setup_fertig() { [ "$(setup_wert setup done)" = "true" ]; }
 kurz_datei=""; kurz_link=""; kurz_web=""; direkt_url=""
-direkt_freigeben() { # App direkt im Netz erreichbar: Port auf allen Schnittstellen statt nur 127.0.0.1
+direkt_freigeben() {
   if grep -q '^RC_BIND=' .env; then sed -i 's|^RC_BIND=.*|RC_BIND=0.0.0.0|' .env; else echo "RC_BIND=0.0.0.0" >> .env; fi
   tu docker compose up -d app >/dev/null 2>&1 || true
   direkt_url="http://${ip}:${PORT}"
@@ -1274,8 +1096,6 @@ kurz_weg() {
   say "==> Kurzzeit-Eintrag fuer http://${ip} wieder entfernt." "==> Temporary entry for http://${ip} removed again."
   kurz_datei=""
 }
-# 10. Unter der Domain laeuft schon ein anderer Dienst (eigener Eintrag im Webserver): auf Wunsch umstellen.
-#     Der alte Eintrag wird vorher gesichert; ein Zurueck ist jederzeit moeglich.
 umzug_anbieten() {
   local ziel port zc zbild stempel sicher datei ok=""
   datei=$(readlink -f "$fremd")
@@ -1289,7 +1109,6 @@ umzug_anbieten() {
   echo ""
   say "==> $DOMAIN zeigt bisher auf ${ziel:-einen anderen Dienst}${zc:+ (Container $zc, $zbild)}." "==> $DOMAIN currently points to ${ziel:-another service}${zc:+ (container $zc, $zbild)}."
   ja "    $(s "$DOMAIN auf RedClub umstellen? (Der bisherige Dienst ist unter dieser Domain dann nicht mehr erreichbar.)" "Switch $DOMAIN to RedClub? (The previous service is then no longer reachable under this domain.)")" "n" || return 1
-  # Domain umstellen: im vorhandenen Eintrag nur das Ziel tauschen — Zertifikat und alles andere bleibt
   stempel=$(date +%Y%m%d-%H%M%S); mkdir -p /root/redclub-backup
   sicher="/root/redclub-backup/$(basename "$datei").bak-$stempel"
   cp -a "$datei" "$sicher"
@@ -1314,12 +1133,10 @@ umzug_anbieten() {
   return 0
 }
 
-# Schon eingerichtet und die Domain gehoert noch einem anderen Dienst? Dann das Umstellen anbieten.
 if [ "$MODUS" = "port" ] && [ -n "$DOMAIN" ] && [ -n "$fremd" ] && [ "${RC_DRY_RUN:-}" != "1" ] && setup_fertig; then
   umzug_anbieten && exit 0
 fi
 
-# Kurzzeit-Link auch dann, wenn die Domain noch auf den alten Dienst zeigt (Einrichtung erst, dann Umstellen)
 if [ "$MODUS" = "port" ] && [ -z "$vhost_angelegt" ] && { [ -z "$DOMAIN" ] || [ -n "$fremd" ]; } && [ "$VHOST" = "ja" ] && [[ "${ip:-}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ "${RC_DRY_RUN:-}" != "1" ] && ! setup_fertig; then
   if command -v nginx >/dev/null 2>&1; then kurz_web="nginx"
   elif command -v apache2ctl >/dev/null 2>&1; then kurz_web="apache2"
@@ -1376,7 +1193,7 @@ if [ "$MODUS" = "port" ] && [ -z "$vhost_angelegt" ] && { [ -z "$DOMAIN" ] || [ 
       fi
     fi
   else
-    direkt_freigeben   # „Nein“ oder kein Webserver: einfach die IP mit dem gewaehlten Port
+    direkt_freigeben
   fi
 fi
 if [ -n "$direkt_url" ]; then
@@ -1409,7 +1226,6 @@ else
   say "    Firewall: Port 80 und 443 muessen von aussen erreichbar sein." "    Firewall: port 80 and 443 must be reachable from outside."
 fi
 say "    Den Setup-Code siehst du oben (oder: docker compose logs app | grep Setup-Code)." "    You can see the setup code above (or: docker compose logs app | grep Setup-Code)."
-# Abschluss: Adresse noch einmal gross
 ziel_url=""
 if [ -n "$direkt_url" ]; then ziel_url="$direkt_url"
 elif [ "$MODUS" = "port" ] && [ -n "${vhost_angelegt:-}" ] && [ -n "${DOMAIN:-}" ]; then ziel_url="$([ -n "${https_ok:-}" ] && echo https || echo http)://${DOMAIN}"
