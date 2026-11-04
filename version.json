@@ -1,16 +1,16 @@
 {
-  "version": "2.9.0",
-  "datum": "2026-11-04",
+  "version": "2.9.1",
+  "datum": "2026-11-05",
   "hinweise": {
     "de": [
-      "Neues optionales Modul Infrastruktur: Server und IP-Adressen, Domains und Zertifikate, Kosten und Verträge, Racks und Kabel an einer Stelle, mit Zuständigen und Warnungen vor Ablauf. Einschalten unter Einstellungen, Module.",
-      "Beta: Die Anbindung an Skrime (Abgleich, Starten und Stoppen) lief noch nicht gegen die echte Skrime-Schnittstelle und kann scheitern. Prüfe die Werte bei Skrime. Einträge von Hand funktionieren unabhängig davon.",
-      "Zugangsdaten gehören nicht in das Modul, es gibt nur einen Verweis auf den Ort. Bestehende Vereinsdaten bleiben unverändert."
+      "Skrime-Abgleich: Ein einzelnes langsames oder gestörtes Produkt stoppt den Abgleich nicht mehr. Die anderen Produkte kommen an, bekannte Werte bleiben erhalten, und unter dem Abgleich steht je Produkt der Grund.",
+      "Längere Wartezeit und ein zweiter Versuch beim Lesen. Starten und Stoppen werden nie automatisch wiederholt.",
+      "Klare Fehlermeldungen statt „nicht erreichbar“, und ein beendeter Abgleich sieht nicht mehr aus, als würde er hängen. Die Anbindung an Skrime bleibt Beta."
     ],
     "en": [
-      "New optional Infrastructure module: servers and IP addresses, domains and certificates, costs and contracts, racks and cables in one place, with people responsible and expiry warnings. Turn it on under Settings, Modules.",
-      "Beta: the Skrime connection (sync, start and stop) has not yet run against the real Skrime interface and may fail. Check the values at Skrime. Manual entries work independently of this.",
-      "Credentials do not belong in the module, it only holds a pointer to where they are kept. Existing club data stays unchanged."
+      "Skrime sync: a single slow or failing product no longer stops the sync. The other products arrive, known values are kept, and the reason for each product is shown below the sync.",
+      "Longer wait and a second attempt when reading. Start and stop are never repeated automatically.",
+      "Clear error messages instead of “cannot be reached”, and a finished sync no longer looks stuck. The Skrime connection stays in beta."
     ]
   }
 }
