@@ -1,16 +1,16 @@
 {
-  "version": "2.9.1",
+  "version": "2.10.0",
   "datum": "2026-11-05",
   "hinweise": {
     "de": [
-      "Skrime-Abgleich: Ein einzelnes langsames oder gestörtes Produkt stoppt den Abgleich nicht mehr. Die anderen Produkte kommen an, bekannte Werte bleiben erhalten, und unter dem Abgleich steht je Produkt der Grund.",
-      "Längere Wartezeit und ein zweiter Versuch beim Lesen. Starten und Stoppen werden nie automatisch wiederholt.",
-      "Klare Fehlermeldungen statt „nicht erreichbar“, und ein beendeter Abgleich sieht nicht mehr aus, als würde er hängen. Die Anbindung an Skrime bleibt Beta."
+      "Neu im Modul Infrastruktur: RedClub verbindet sich mit RedNetz. Status, Auslastung, Container und Störungen deiner Server erscheinen im Reiter RedNetz und in der Serverliste. Von Hand gepflegte Felder und Daten von Skrime bleiben unberührt.",
+      "So geht es: In RedNetz einen Token mit dem Bereich produkt:lesen anlegen und in RedClub unter Infrastruktur → RedNetz mit der Adresse eintragen. Auf demselben Server geht das auch über compose.rednetz.yml, siehe README.",
+      "Beta: Anmeldung in RedNetz mit dem RedClub-Konto. Das lief bisher nur in Testumgebungen ohne echte Domain. Das eigene Passwort-Konto in RedNetz bleibt immer nutzbar."
     ],
     "en": [
-      "Skrime sync: a single slow or failing product no longer stops the sync. The other products arrive, known values are kept, and the reason for each product is shown below the sync.",
-      "Longer wait and a second attempt when reading. Start and stop are never repeated automatically.",
-      "Clear error messages instead of “cannot be reached”, and a finished sync no longer looks stuck. The Skrime connection stays in beta."
+      "New in the Infrastructure module: RedClub connects to RedNetz. Status, load, containers and incidents of your servers appear in the RedNetz tab and in the server list. Manually maintained fields and data from Skrime stay untouched.",
+      "How it works: Create a token with the scope produkt:lesen in RedNetz and enter it with the address in RedClub under Infrastructure → RedNetz. On the same server you can also use compose.rednetz.yml, see the README.",
+      "Beta: Signing in to RedNetz with your RedClub account. So far this only ran in test environments without a real domain. The RedNetz account with a password stays usable at all times."
     ]
   }
 }

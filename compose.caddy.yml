@@ -2,6 +2,9 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    environment:
+      RC_REDDROP_DOMAIN: ${RC_REDDROP_DOMAIN:-reddrop.invalid}
+      RC_REDNETZ_DOMAIN: ${RC_REDNETZ_DOMAIN:-rednetz.invalid}
     ports:
       - "80:80"
       - "443:443"

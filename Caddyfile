@@ -12,6 +12,10 @@ import /rc/caddy/*.caddy
 	handle @reddrop {
 		redir https://{host}{uri} 308
 	}
+	@rednetz host {$RC_REDNETZ_DOMAIN:rednetz.invalid}
+	handle @rednetz {
+		redir https://{host}{uri} 308
+	}
 	handle {
 		request_body {
 			max_size 110MB
@@ -32,6 +36,14 @@ https:// {
 			max_size 10GB
 		}
 		reverse_proxy reddrop:3000
+	}
+	@rednetz host {$RC_REDNETZ_DOMAIN:rednetz.invalid}
+	handle @rednetz {
+		header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		request_body {
+			max_size 25MB
+		}
+		reverse_proxy rednetz:3000
 	}
 	handle {
 		request_body {

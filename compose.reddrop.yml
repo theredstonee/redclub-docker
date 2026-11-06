@@ -4,10 +4,6 @@ services:
       RC_REDDROP_INTERN: http://reddrop:3000
       RC_REDDROP_DOMAIN: ${RC_REDDROP_DOMAIN:-}
 
-  caddy:
-    environment:
-      RC_REDDROP_DOMAIN: ${RC_REDDROP_DOMAIN:-reddrop.invalid}
-
   reddrop:
     image: ghcr.io/theredstonee/reddrop:latest
     restart: unless-stopped

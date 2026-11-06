@@ -1,0 +1,40 @@
+services:
+  app:
+    environment:
+      RC_REDNETZ_INTERN: http://rednetz:3000
+      RC_REDNETZ_DOMAIN: ${RC_REDNETZ_DOMAIN:-}
+
+  rednetz:
+    image: ghcr.io/theredstonee/rednetz:latest
+    restart: unless-stopped
+    environment:
+      NUXT_DB_URL: postgres://rednetz:${REDNETZ_DB_PASSWORD:?Bitte REDNETZ_DB_PASSWORD in .env setzen}@rednetz-db:5432/rednetz
+      TZ: ${TZ:-Europe/Berlin}
+      RN_LANG: ${RC_LANG:-de}
+      RN_DISABLE_HTTPS_REDIRECT: "1"
+    volumes:
+      - rednetz_daten:/data
+    depends_on:
+      rednetz-db:
+        condition: service_healthy
+    expose: ["3000"]
+    stop_grace_period: 20s
+
+  rednetz-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rednetz
+      POSTGRES_PASSWORD: ${REDNETZ_DB_PASSWORD}
+      POSTGRES_DB: rednetz
+    volumes:
+      - rednetz_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rednetz -d rednetz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  rednetz_daten:
+  rednetz_db:

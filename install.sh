@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 QUELLE="${RC_QUELLE:-https://raw.githubusercontent.com/theredstonee/redclub-docker/main}"
-DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.hosting.yml compose.sftp.yml compose.phpdb.yml Caddyfile install.sh update.sh .env.example README.md version.json"
+DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.rednetz.yml compose.hosting.yml compose.sftp.yml compose.phpdb.yml Caddyfile install.sh update.sh .env.example README.md version.json"
 unraid_ziel() {
   [ -f /etc/unraid-version ] && [ -d /mnt/user ] || return 1
   case "$1" in /mnt/*|/boot/*) return 1 ;; esac
@@ -25,7 +25,7 @@ inst_echt() {
   cf=$(sed -n 's/^COMPOSE_FILE=//p' "$1/.env" 2>/dev/null | tail -1 | tr -d '"'"'"'\r')
   [ -n "$cf" ] || return 0
   for x in $(printf '%s' "$cf" | tr ':' ' '); do
-    case "$x" in docker-compose.yml|compose.caddy.yml|compose.port.yml|compose.hosting.yml|compose.phpdb.yml|compose.sftp.yml|compose.reddrop.yml|compose.mail.yml|compose.mail-caddy.yml|compose.mail-le.yml) ;; *) return 1 ;; esac
+    case "$x" in docker-compose.yml|compose.caddy.yml|compose.port.yml|compose.hosting.yml|compose.phpdb.yml|compose.sftp.yml|compose.reddrop.yml|compose.rednetz.yml|compose.mail.yml|compose.mail-caddy.yml|compose.mail-le.yml) ;; *) return 1 ;; esac
   done
 }
 inst_ordner() {
@@ -876,7 +876,7 @@ if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://get.docker.com | sh
 fi
 docker compose version >/dev/null 2>&1 || { say "FEHLER: 'docker compose' fehlt. Bitte Docker aktualisieren." "ERROR: 'docker compose' is missing. Please update Docker."; exit 1; }
-for f in docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml Caddyfile; do
+for f in docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.rednetz.yml Caddyfile; do
   [ -f "$f" ] || curl -fsSL -o "$f" "$QUELLE/$f" || { say "FEHLER: $f fehlt neben install.sh und konnte nicht geladen werden." "ERROR: $f is missing next to install.sh and could not be downloaded."; exit 1; }
 done
 

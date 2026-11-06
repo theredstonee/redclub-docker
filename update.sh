@@ -3,7 +3,7 @@ set -uo pipefail
 {
 exec </dev/null
 QUELLE="${RC_QUELLE:-https://raw.githubusercontent.com/theredstonee/redclub-docker/main}"
-DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.hosting.yml compose.sftp.yml compose.phpdb.yml Caddyfile install.sh update.sh .env.example README.md version.json"
+DATEIEN="docker-compose.yml compose.caddy.yml compose.port.yml compose.reddrop.yml compose.rednetz.yml compose.hosting.yml compose.sftp.yml compose.phpdb.yml Caddyfile install.sh update.sh .env.example README.md version.json"
 DIR="${RC_DIR:-}"; STATUS=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -144,7 +144,7 @@ inst_echt() {
   cf=$(sed -n 's/^COMPOSE_FILE=//p' "$1/.env" 2>/dev/null | tail -1 | tr -d '"'"'"'\r')
   [ -n "$cf" ] || return 0
   for x in $(printf '%s' "$cf" | tr ':' ' '); do
-    case "$x" in docker-compose.yml|compose.caddy.yml|compose.port.yml|compose.hosting.yml|compose.phpdb.yml|compose.sftp.yml|compose.reddrop.yml|compose.mail.yml|compose.mail-caddy.yml|compose.mail-le.yml) ;; *) return 1 ;; esac
+    case "$x" in docker-compose.yml|compose.caddy.yml|compose.port.yml|compose.hosting.yml|compose.phpdb.yml|compose.sftp.yml|compose.reddrop.yml|compose.rednetz.yml|compose.mail.yml|compose.mail-caddy.yml|compose.mail-le.yml) ;; *) return 1 ;; esac
   done
 }
 inst_ordner() {

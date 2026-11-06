@@ -122,6 +122,12 @@ Die Website ist ohne weiteres unter `https://<RedClub-Adresse>/web` erreichbar. 
 
 Mit eigenem Caddy fragt `install.sh`, ob [RedDrop](https://www.theredstonee.de/reddrop/) gleich mitinstalliert werden soll (eigene Domain nötig). Danach in RedDrop einen API-Token anlegen und in RedClub unter **Verwaltung → Verbindungen** eintragen. Dort lässt sich auch RedClub als Anmelde-Dienst für RedDrop eintragen — Vorstand und Mitglieder melden sich dann mit ihrem RedClub-Zugang an.
 
+### RedNetz für die Infrastruktur
+
+Das Modul **Infrastruktur** zeigt auf Wunsch den Zustand aus [RedNetz](https://www.theredstonee.de/rednetz/): Status, Auslastung, Container und Störungen je Server. Liegt RedNetz woanders, reicht unter **Infrastruktur → RedNetz** die Adresse mit einem API-Token (Bereich `produkt:lesen`). Auf demselben Server: `compose.rednetz.yml` an `COMPOSE_FILE` in der `.env` anhängen, `RC_REDNETZ_DOMAIN` und `REDNETZ_DB_PASSWORD` setzen, Adresse dann `http://rednetz:3000`. Ohne den eingebauten Caddy (eigener Webserver) ist die Oberfläche von RedNetz nicht von außen erreichbar, RedClub liest trotzdem über das interne Netz. Zusammengeführt wird über die IP, dann über den Namen. Von Hand gepflegte Felder und Daten von Skrime bleiben unberührt.
+
+**Anmeldung über das RedClub-Konto (Beta):** In RedClub unter **Verbindungen → Anmeldung für andere Apps** RedNetz eintragen (Rücksprung `https://deine-netz-domain/api/oidc/rueck`) und Kennung und Geheimnis in RedNetz unter **Konten** hinterlegen. Das lief bisher nur in Testumgebungen ohne echte Domain. Das eigene Passwort-Konto in RedNetz bleibt immer nutzbar.
+
 ## Hosting
 
 Weitere Websites des Vereins (oder WordPress, Joomla, Nextcloud) laufen direkt auf dem RedClub-Server. Einschalten im Panel unter **Module → Hosting**, dann **Hosting → Einschalten** und PHP-Version wählen. Der Update-Dienst startet dafür zwei Container: `web` (Apache mit PHP) und `phpdb` (MariaDB). Beide liegen in einem eigenen Netz — PHP-Code der Websites erreicht weder die Vereinsdatenbank noch RedClub selbst.
