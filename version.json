@@ -1,16 +1,12 @@
 {
-  "version": "2.10.0",
-  "datum": "2026-11-05",
+  "version": "2.10.1",
+  "datum": "2026-11-08",
   "hinweise": {
     "de": [
-      "Neu im Modul Infrastruktur: RedClub verbindet sich mit RedNetz. Status, Auslastung, Container und Störungen deiner Server erscheinen im Reiter RedNetz und in der Serverliste. Von Hand gepflegte Felder und Daten von Skrime bleiben unberührt.",
-      "So geht es: In RedNetz einen Token mit dem Bereich produkt:lesen anlegen und in RedClub unter Infrastruktur → RedNetz mit der Adresse eintragen. Auf demselben Server geht das auch über compose.rednetz.yml, siehe README.",
-      "Beta: Anmeldung in RedNetz mit dem RedClub-Konto. Das lief bisher nur in Testumgebungen ohne echte Domain. Das eigene Passwort-Konto in RedNetz bleibt immer nutzbar."
+      "Website-Import und „Datei über eine Adresse laden“ verbinden jetzt zuerst über IPv4. Docker-Netze haben meist kein IPv6, darum scheiterten Server mit IPv6-Eintrag bisher, obwohl sie erreichbar waren."
     ],
     "en": [
-      "New in the Infrastructure module: RedClub connects to RedNetz. Status, load, containers and incidents of your servers appear in the RedNetz tab and in the server list. Manually maintained fields and data from Skrime stay untouched.",
-      "How it works: Create a token with the scope produkt:lesen in RedNetz and enter it with the address in RedClub under Infrastructure → RedNetz. On the same server you can also use compose.rednetz.yml, see the README.",
-      "Beta: Signing in to RedNetz with your RedClub account. So far this only ran in test environments without a real domain. The RedNetz account with a password stays usable at all times."
+      "Website import and “load file from an address” now connect via IPv4 first. Docker networks usually have no IPv6, so servers with an IPv6 record failed before although they were reachable."
     ]
   }
 }
